@@ -2,6 +2,8 @@
 // Created by jonat on 22/05/2020.
 //
 
+// TODO:Need to sort out magic numbers
+
 #include <iostream>
 #include "Core.h"
 const uint8_t layerCount = 2;
@@ -258,18 +260,12 @@ bool Core::validatePhysicalDevice(VkPhysicalDevice physicalDevice, uint32_t *que
 // TODO: Need to refactor this function
 void Core::initSwapchain() {
   VkPresentModeKHR presentMode;
-  getPresentMode(&presentMode);
-
+  initPresentMode(&presentMode);
   VkSurfaceCapabilitiesKHR surfaceCapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->device.physical, this->surface, &surfaceCapabilities);
-
-  uint32_t imageCount =
-          surfaceCapabilities.minImageCount==surfaceCapabilities.maxImageCount
-          ?surfaceCapabilities.minImageCount + 1
-          :surfaceCapabilities.minImageCount;
-
+  uint32_t imageCount = getImageCount(surfaceCapabilities);
   VkExtent2D extent;
-  getExtent2D(&extent, surfaceCapabilities);
+  initExtent2D(&extent, surfaceCapabilities);
 
   VkImageUsageFlags surfaceUsageFlags = 0;
   if (surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT
@@ -332,8 +328,10 @@ void Core::initSwapchain() {
   }
 }
 
-void Core::getExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
+// Function finds the extent of the images/surface we use
+void Core::initExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
   if (surfaceCapabilities.currentExtent.width == -1) {
+    // TODO: Fix the use of 500
     extent->width = extent->height = 500;
     if (extent-> width < surfaceCapabilities.minImageExtent.width) {
       extent->width = surfaceCapabilities.minImageExtent.width;
@@ -346,11 +344,13 @@ void Core::getExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCapa
       extent->height = surfaceCapabilities.maxImageExtent.height;
     }
   } else {
+    // In this case, we have no choice but must use the extent provided
     *extent = surfaceCapabilities.currentExtent;
   }
 }
 
-bool Core::getPresentMode(VkPresentModeKHR *presentMode) {
+// Function finds a suitable present mode
+bool Core::initPresentMode(VkPresentModeKHR *presentMode) {
   uint32_t presentModeCount = 0;
   VkPresentModeKHR presentModes[20];
   vkGetPhysicalDeviceSurfacePresentModesKHR(this->device.physical, this->surface, &presentModeCount, nullptr);
@@ -359,10 +359,12 @@ bool Core::getPresentMode(VkPresentModeKHR *presentMode) {
 
   bool foundSuitablePresentMode = false;
   for (uint32_t i = 0; i < presentModeCount; i++) {
+    // This is the most desirable present mode we want
     if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
       *presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
       foundSuitablePresentMode = true;
       break;
+    // FIFO works too but is our second choice
     } else if (presentModes[i] == VK_PRESENT_MODE_FIFO_KHR) {
       *presentMode = VK_PRESENT_MODE_FIFO_KHR;
       foundSuitablePresentMode = true;
@@ -370,6 +372,13 @@ bool Core::getPresentMode(VkPresentModeKHR *presentMode) {
   }
 
   return foundSuitablePresentMode;
+}
+
+// Function gets the number of images the swapchain will use.
+uint32_t Core::getImageCount(VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
+  return  surfaceCapabilities.minImageCount==surfaceCapabilities.maxImageCount
+          ?surfaceCapabilities.minImageCount + 1
+          :surfaceCapabilities.minImageCount;
 }
 
 #undef graphicIndex

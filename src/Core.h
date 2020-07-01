@@ -40,8 +40,9 @@ private:
     void initWindowContext();
     bool validatePhysicalDevice(VkPhysicalDevice physicalDevice, uint32_t queueIndices[], uint8_t targetExtensionCount, const char* targetExtensions[]);
     void initSwapchain();
-    void getExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
-    bool getPresentMode(VkPresentModeKHR *presentMode);
+    void initExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
+    bool initPresentMode(VkPresentModeKHR *presentMode);
+    uint32_t getImageCount(VkSurfaceCapabilitiesKHR &surfaceCapabilities);
 };
 
 #endif //DYNAMICLINK_CORE_H
