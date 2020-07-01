@@ -257,29 +257,8 @@ bool Core::validatePhysicalDevice(VkPhysicalDevice physicalDevice, uint32_t *que
 
 // TODO: Need to refactor this function
 void Core::initSwapchain() {
-  uint32_t presentModeCount = 0;
-  VkPresentModeKHR presentModes[20];
-  vkGetPhysicalDeviceSurfacePresentModesKHR(this->device.physical, this->surface, &presentModeCount, nullptr);
-  presentModeCount = presentModeCount<20?presentModeCount:20;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(this->device.physical, this->surface, &presentModeCount, presentModes);
-
-  bool foundSuitablePresentMode = false;
   VkPresentModeKHR presentMode;
-  for (uint32_t i = 0; i < presentModeCount; i++) {
-    if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
-      presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-      foundSuitablePresentMode = true;
-      break;
-    } else if (presentModes[i] == VK_PRESENT_MODE_FIFO_KHR) {
-      presentMode = VK_PRESENT_MODE_FIFO_KHR;
-      foundSuitablePresentMode = true;
-    }
-  }
-
-  if (!foundSuitablePresentMode) {
-    std::cout << "Failed to find suitable present mode" << std::endl;
-    return;
-  }
+  getPresentMode(&presentMode);
 
   VkSurfaceCapabilitiesKHR surfaceCapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->device.physical, this->surface, &surfaceCapabilities);
@@ -369,6 +348,28 @@ void Core::getExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCapa
   } else {
     *extent = surfaceCapabilities.currentExtent;
   }
+}
+
+bool Core::getPresentMode(VkPresentModeKHR *presentMode) {
+  uint32_t presentModeCount = 0;
+  VkPresentModeKHR presentModes[20];
+  vkGetPhysicalDeviceSurfacePresentModesKHR(this->device.physical, this->surface, &presentModeCount, nullptr);
+  presentModeCount = presentModeCount<20?presentModeCount:20;
+  vkGetPhysicalDeviceSurfacePresentModesKHR(this->device.physical, this->surface, &presentModeCount, presentModes);
+
+  bool foundSuitablePresentMode = false;
+  for (uint32_t i = 0; i < presentModeCount; i++) {
+    if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+      *presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+      foundSuitablePresentMode = true;
+      break;
+    } else if (presentModes[i] == VK_PRESENT_MODE_FIFO_KHR) {
+      *presentMode = VK_PRESENT_MODE_FIFO_KHR;
+      foundSuitablePresentMode = true;
+    }
+  }
+
+  return foundSuitablePresentMode;
 }
 
 #undef graphicIndex
