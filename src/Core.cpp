@@ -267,10 +267,16 @@ void Core::initSwapchain() {
   VkExtent2D extent;
   initExtent2D(&extent, surfaceCapabilities);
 
-  VkImageUsageFlags surfaceUsageFlags = 0;
+  VkImageUsageFlags usageFlags;
+  if (!initImageUsageFlags(&usageFlags, surfaceCapabilities)) {
+    std::cout << "Failure - Surface lacks required support" << std::endl;
+  }
+
+
+
   if (surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT
    && surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
-    surfaceUsageFlags = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    usageFlags = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
   } else {
     std::cout << "Failed to get surface usage flags" << std::endl;
     return;
@@ -310,7 +316,7 @@ void Core::initSwapchain() {
   info.imageColorSpace = selectedSurfaceFormat.colorSpace;
   info.imageExtent = extent;
   info.imageArrayLayers = 1;
-  info.imageUsage = surfaceUsageFlags;
+  info.imageUsage = usageFlags;
   info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
   info.queueFamilyIndexCount = 0;
   info.pQueueFamilyIndices = nullptr;
@@ -350,24 +356,24 @@ void Core::initExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCap
 }
 
 // Function finds a suitable present mode
-bool Core::initPresentMode(VkPresentModeKHR *presentMode) {
+int Core::initPresentMode(VkPresentModeKHR *presentMode) {
   uint32_t presentModeCount = 0;
   VkPresentModeKHR presentModes[20];
   vkGetPhysicalDeviceSurfacePresentModesKHR(this->device.physical, this->surface, &presentModeCount, nullptr);
   presentModeCount = presentModeCount<20?presentModeCount:20;
   vkGetPhysicalDeviceSurfacePresentModesKHR(this->device.physical, this->surface, &presentModeCount, presentModes);
 
-  bool foundSuitablePresentMode = false;
+  bool foundSuitablePresentMode = true;
   for (uint32_t i = 0; i < presentModeCount; i++) {
     // This is the most desirable present mode we want
     if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
       *presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-      foundSuitablePresentMode = true;
+      foundSuitablePresentMode = false;
       break;
     // FIFO works too but is our second choice
     } else if (presentModes[i] == VK_PRESENT_MODE_FIFO_KHR) {
       *presentMode = VK_PRESENT_MODE_FIFO_KHR;
-      foundSuitablePresentMode = true;
+      foundSuitablePresentMode = false;
     }
   }
 
@@ -379,6 +385,18 @@ uint32_t Core::getImageCount(VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
   return  surfaceCapabilities.minImageCount==surfaceCapabilities.maxImageCount
           ?surfaceCapabilities.minImageCount + 1
           :surfaceCapabilities.minImageCount;
+}
+
+// Function to get flags for how we will use the images, We are looking for transfer and
+int Core::initImageUsageFlags(VkImageUsageFlags *usageFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
+  if (surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT
+      && surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
+    *usageFlags = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  } else {
+    // Provided capabilities aren't sufficient
+    return 1;
+  }
+  return 0;
 }
 
 #undef graphicIndex

@@ -41,8 +41,9 @@ private:
     bool validatePhysicalDevice(VkPhysicalDevice physicalDevice, uint32_t queueIndices[], uint8_t targetExtensionCount, const char* targetExtensions[]);
     void initSwapchain();
     void initExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
-    bool initPresentMode(VkPresentModeKHR *presentMode);
+    int initPresentMode(VkPresentModeKHR *presentMode);
     uint32_t getImageCount(VkSurfaceCapabilitiesKHR &surfaceCapabilities);
+    int initImageUsageFlags(VkImageUsageFlags *usageFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
 };
 
 #endif //DYNAMICLINK_CORE_H
