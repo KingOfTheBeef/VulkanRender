@@ -264,46 +264,18 @@ void Core::initSwapchain() {
   VkSurfaceCapabilitiesKHR surfaceCapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->device.physical, this->surface, &surfaceCapabilities);
   uint32_t imageCount = getImageCount(surfaceCapabilities);
-  VkExtent2D extent;
-  initExtent2D(&extent, surfaceCapabilities);
-
+  // VkExtent2D extent;
+  // initExtent2D(&extent, surfaceCapabilities);
   VkImageUsageFlags usageFlags;
-  if (!initImageUsageFlags(&usageFlags, surfaceCapabilities)) {
+  if (initImageUsageFlags(&usageFlags, surfaceCapabilities)) {
     std::cout << "Failure - Surface lacks required support" << std::endl;
   }
-
-
-
-  if (surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT
-   && surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
-    usageFlags = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-  } else {
-    std::cout << "Failed to get surface usage flags" << std::endl;
-    return;
-  }
-
   VkSurfaceTransformFlagBitsKHR transformFlags =
           surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
               ?VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
               :surfaceCapabilities.currentTransform;
-
-  uint32_t surfaceFormatsCount = 0;
-  VkSurfaceFormatKHR surfaceFormats[100];
-  vkGetPhysicalDeviceSurfaceFormatsKHR(this->device.physical, this->surface, &surfaceFormatsCount, nullptr);
-  std::cout << "Surface formats: " << (int)surfaceFormatsCount << std::endl;
-  surfaceFormatsCount = surfaceFormatsCount<100? surfaceFormatsCount:100;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(this->device.physical, this->surface, &surfaceFormatsCount, surfaceFormats);
-  VkSurfaceFormatKHR selectedSurfaceFormat = surfaceFormats[0];
-  std::cout << selectedSurfaceFormat.format << std::endl;
-  for (uint32_t i = 0; i < surfaceFormatsCount; i++) {
-    if (surfaceFormats[i].format == VK_FORMAT_R8G8B8A8_UNORM
-    // && surfaceFormats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR
-    ) {
-      selectedSurfaceFormat = surfaceFormats[i];
-      std::cout << "Found desired surface" << std::endl;
-      break;
-    }
-  }
+  VkSurfaceFormatKHR surfaceFormat;
+  initSurfaceFormat(&surfaceFormat);
 
   VkSwapchainKHR prevSwapchain = this->swapchain;
   VkSwapchainCreateInfoKHR info = {};
@@ -312,9 +284,10 @@ void Core::initSwapchain() {
   info.flags = 0;
   info.surface = this->surface;
   info.minImageCount = imageCount;
-  info.imageFormat = selectedSurfaceFormat.format;
-  info.imageColorSpace = selectedSurfaceFormat.colorSpace;
-  info.imageExtent = extent;
+  info.imageFormat = surfaceFormat.format;
+  info.imageColorSpace = surfaceFormat.colorSpace;
+  // info.imageExtent = extent;
+  initExtent2D(&info.imageExtent, surfaceCapabilities);
   info.imageArrayLayers = 1;
   info.imageUsage = usageFlags;
   info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -328,6 +301,8 @@ void Core::initSwapchain() {
 
   if(vkCreateSwapchainKHR(this->device.logical, &info, nullptr, &this->swapchain) != VK_SUCCESS) {
     std::cout << "Error making swapchain" << std::endl;
+  } else {
+    std::cout << "Successful swapchain" << std::endl;
   }
   if (prevSwapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(this->device.logical, prevSwapchain, nullptr);
@@ -395,6 +370,28 @@ int Core::initImageUsageFlags(VkImageUsageFlags *usageFlags, VkSurfaceCapabiliti
   } else {
     // Provided capabilities aren't sufficient
     return 1;
+  }
+  return 0;
+}
+
+// Function to select surface format
+int Core::initSurfaceFormat(VkSurfaceFormatKHR *surfaceFormat) {
+  uint32_t surfaceFormatsCount = 0;
+  VkSurfaceFormatKHR surfaceFormats[100];
+  vkGetPhysicalDeviceSurfaceFormatsKHR(this->device.physical, this->surface, &surfaceFormatsCount, nullptr);
+  surfaceFormatsCount = surfaceFormatsCount<100? surfaceFormatsCount:100;
+  vkGetPhysicalDeviceSurfaceFormatsKHR(this->device.physical, this->surface, &surfaceFormatsCount, surfaceFormats);
+
+  // Default to the first available format
+  *surfaceFormat = surfaceFormats[0];
+  for (uint32_t i = 0; i < surfaceFormatsCount; i++) {
+    // Check if we can get a desirable format
+    if (surfaceFormats[i].format == VK_FORMAT_R8G8B8A8_UNORM
+      // && surfaceFormats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR
+            ) {
+      *surfaceFormat = surfaceFormats[i];
+      break;
+    }
   }
   return 0;
 }
