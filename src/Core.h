@@ -45,6 +45,7 @@ private:
     uint32_t getImageCount(VkSurfaceCapabilitiesKHR &surfaceCapabilities);
     int initImageUsageFlags(VkImageUsageFlags *usageFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
     int initSurfaceFormat(VkSurfaceFormatKHR *surfaceFormat);
+    int initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
 };
 
 #endif //DYNAMICLINK_CORE_H

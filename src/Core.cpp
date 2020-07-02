@@ -270,10 +270,6 @@ void Core::initSwapchain() {
   if (initImageUsageFlags(&usageFlags, surfaceCapabilities)) {
     std::cout << "Failure - Surface lacks required support" << std::endl;
   }
-  VkSurfaceTransformFlagBitsKHR transformFlags =
-          surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
-              ?VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
-              :surfaceCapabilities.currentTransform;
   VkSurfaceFormatKHR surfaceFormat;
   initSurfaceFormat(&surfaceFormat);
 
@@ -283,17 +279,16 @@ void Core::initSwapchain() {
   info.pNext = nullptr;
   info.flags = 0;
   info.surface = this->surface;
-  info.minImageCount = imageCount;
+  info.minImageCount = getImageCount(surfaceCapabilities);
   info.imageFormat = surfaceFormat.format;
   info.imageColorSpace = surfaceFormat.colorSpace;
-  // info.imageExtent = extent;
   initExtent2D(&info.imageExtent, surfaceCapabilities);
   info.imageArrayLayers = 1;
-  info.imageUsage = usageFlags;
+  initImageUsageFlags(&info.imageUsage, surfaceCapabilities);
   info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
   info.queueFamilyIndexCount = 0;
   info.pQueueFamilyIndices = nullptr;
-  info.preTransform = transformFlags;
+  initPretransform(&info.preTransform, surfaceCapabilities);
   info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   info.presentMode = presentMode;
   info.clipped = VK_TRUE;
@@ -301,9 +296,8 @@ void Core::initSwapchain() {
 
   if(vkCreateSwapchainKHR(this->device.logical, &info, nullptr, &this->swapchain) != VK_SUCCESS) {
     std::cout << "Error making swapchain" << std::endl;
-  } else {
-    std::cout << "Successful swapchain" << std::endl;
   }
+
   if (prevSwapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(this->device.logical, prevSwapchain, nullptr);
   }
@@ -393,6 +387,16 @@ int Core::initSurfaceFormat(VkSurfaceFormatKHR *surfaceFormat) {
       break;
     }
   }
+  return 0;
+}
+
+// Select pretransform, this is useful when rendering to things like tablets which can change orientation
+int Core::initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
+  *transformFlags =
+          surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
+          ?VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
+          :surfaceCapabilities.currentTransform;
+
   return 0;
 }
 
