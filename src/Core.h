@@ -7,6 +7,7 @@
 
 #include "VulkanInit.h"
 #include <vulkan/vulkan.h>
+#include <vector>
 
 #include "WindowContext.h"
 
@@ -27,6 +28,10 @@ private:
     WindowContext *windowContext;
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
+    VkCommandPool cmdPool;
+    VkCommandBuffer *cmdBuffers;
+    VkSemaphore imageAvailableSema;
+    VkSemaphore imageFinishProcessingSema;
 public:
     Core();
     void init();
@@ -46,6 +51,8 @@ private:
     int initImageUsageFlags(VkImageUsageFlags *usageFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
     int initSurfaceFormat(VkSurfaceFormatKHR *surfaceFormat);
     int initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
+    int initCommandBuffers();
+    int updateCommandBuffers();
 };
 
 #endif //DYNAMICLINK_CORE_H

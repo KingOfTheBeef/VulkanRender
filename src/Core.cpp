@@ -69,6 +69,8 @@ void Core::init() {
   initSurface();
   initDevice();
   initSwapchain();
+
+
 }
 
 void Core::clean() {
@@ -174,7 +176,6 @@ void Core::initDevice() {
   this->device.displayQueueIndex = queueIndices[displayIndex];
   LoadVulkanDeviceFunctions(this->device.logical);
   vkGetDeviceQueue(this->device.logical, this->device.graphicQueueIndex, 0, &this->device.graphicQueue);
-  vkGetDeviceQueue(this->device.logical, this->device.displayQueueIndex, 0, &this->device.displayQueue);
   delete[](physicalDevices);
 }
 
@@ -264,12 +265,6 @@ void Core::initSwapchain() {
   VkSurfaceCapabilitiesKHR surfaceCapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->device.physical, this->surface, &surfaceCapabilities);
   uint32_t imageCount = getImageCount(surfaceCapabilities);
-  // VkExtent2D extent;
-  // initExtent2D(&extent, surfaceCapabilities);
-  VkImageUsageFlags usageFlags;
-  if (initImageUsageFlags(&usageFlags, surfaceCapabilities)) {
-    std::cout << "Failure - Surface lacks required support" << std::endl;
-  }
   VkSurfaceFormatKHR surfaceFormat;
   initSurfaceFormat(&surfaceFormat);
 
@@ -284,7 +279,9 @@ void Core::initSwapchain() {
   info.imageColorSpace = surfaceFormat.colorSpace;
   initExtent2D(&info.imageExtent, surfaceCapabilities);
   info.imageArrayLayers = 1;
-  initImageUsageFlags(&info.imageUsage, surfaceCapabilities);
+  if (initImageUsageFlags(&info.imageUsage, surfaceCapabilities)) {
+    std::cout << "Failure to get usage flags" << std::endl;
+  }
   info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
   info.queueFamilyIndexCount = 0;
   info.pQueueFamilyIndices = nullptr;
@@ -396,7 +393,10 @@ int Core::initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurf
           surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
           ?VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
           :surfaceCapabilities.currentTransform;
+  return 0;
+}
 
+int Core::initCommandBuffers() {
   return 0;
 }
 
