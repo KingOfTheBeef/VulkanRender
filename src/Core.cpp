@@ -429,7 +429,69 @@ int Core::initCommandBuffers() {
     std::cout << "Failed to allocate command buffers" << std::endl;
     return -1;
   }
+  recordCommandBuffers();
 
+  return 0;
+}
+
+int Core::recordCommandBuffers() {
+  // Think about making images a class property
+  VkImage *images = new VkImage[this->cmdBufferCount];
+  vkGetSwapchainImagesKHR(this->device.logical, this->swapchain, &this->cmdBufferCount, images);
+
+  VkCommandBufferBeginInfo commandBufferBeginInfo = {};
+  commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  commandBufferBeginInfo.pNext = nullptr;
+  commandBufferBeginInfo.flags = 0;
+  commandBufferBeginInfo.pInheritanceInfo = nullptr;
+
+  VkClearColorValue color = {{1.0f, 0.8f, 0.4f, 0.0f}};
+
+  VkImageSubresourceRange subresourceRange = {};
+  subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  subresourceRange.baseMipLevel = 0;
+  subresourceRange.levelCount = 1;
+  subresourceRange.baseArrayLayer = 0;
+  subresourceRange.layerCount = 1;
+
+  for (int i = 0; i < this->cmdBufferCount; i++) {
+    VkImageMemoryBarrier preClearMemBarrier = {};
+    preClearMemBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    preClearMemBarrier.pNext = nullptr;
+    preClearMemBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    preClearMemBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    preClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    preClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    preClearMemBarrier.srcQueueFamilyIndex = this->device.displayQueueIndex;
+    preClearMemBarrier.dstQueueFamilyIndex = this->device.displayQueueIndex;
+    preClearMemBarrier.image = images[i];
+    preClearMemBarrier.subresourceRange = subresourceRange;
+
+    VkImageMemoryBarrier postClearMemBarrier = {};
+    postClearMemBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    postClearMemBarrier.pNext = nullptr;
+    postClearMemBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    postClearMemBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    postClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    postClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    postClearMemBarrier.srcQueueFamilyIndex = this->device.displayQueueIndex;
+    postClearMemBarrier.dstQueueFamilyIndex = this->device.displayQueueIndex;
+    postClearMemBarrier.image = images[i];
+    postClearMemBarrier.subresourceRange = subresourceRange;
+
+
+    vkBeginCommandBuffer(this->cmdBuffers[i], &commandBufferBeginInfo);
+    vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &preClearMemBarrier);
+    vkCmdClearColorImage(this->cmdBuffers[i], images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &subresourceRange);
+    vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &postClearMemBarrier);
+    if (vkEndCommandBuffer(this->cmdBuffers[i]) != VK_SUCCESS) {
+      std::cout << "Failure to record cmd buffer" << std::endl;
+      free(images);
+      return -1;
+    }
+  }
+
+  free(images);
   return 0;
 }
 

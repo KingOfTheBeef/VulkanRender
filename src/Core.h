@@ -39,6 +39,7 @@ private:
 public:
     Core();
     void init();
+    void draw();
     void clean();
 
 
@@ -56,7 +57,7 @@ private:
     int initSurfaceFormat(VkSurfaceFormatKHR *surfaceFormat);
     int initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
     int initCommandBuffers();
-    int updateCommandBuffers();
+    int recordCommandBuffers();
 };
 
 #endif //DYNAMICLINK_CORE_H

@@ -54,5 +54,10 @@ VK_DEVICE_FUNCTION( vkQueuePresentKHR )
 
 VK_DEVICE_FUNCTION( vkCreateCommandPool )
 VK_DEVICE_FUNCTION( vkAllocateCommandBuffers )
+VK_DEVICE_FUNCTION( vkBeginCommandBuffer )
+VK_DEVICE_FUNCTION( vkEndCommandBuffer )
+VK_DEVICE_FUNCTION( vkCmdPipelineBarrier )
+VK_DEVICE_FUNCTION( vkCmdClearColorImage )
+
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION
