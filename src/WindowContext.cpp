@@ -7,7 +7,7 @@
 #include "WindowContext.h"
 
 void WindowContext::initialise(const char *title, int width, int height) {
-  this->window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_HIDDEN);
+  this->window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_VULKAN);
 
   if (this->window == nullptr) {
     std::cout << "Window-Error: Failed to create SDL window" << std::endl;

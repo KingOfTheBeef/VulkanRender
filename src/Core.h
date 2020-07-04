@@ -58,6 +58,7 @@ private:
     int initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
     int initCommandBuffers();
     int recordCommandBuffers();
+    int initSemaphores();
 };
 
 #endif //DYNAMICLINK_CORE_H

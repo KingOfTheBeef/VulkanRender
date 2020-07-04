@@ -69,6 +69,7 @@ void Core::init() {
   initSurface();
   initDevice();
   initSwapchain();
+  initSemaphores();
 
 
   initCommandBuffers();
@@ -442,7 +443,7 @@ int Core::recordCommandBuffers() {
   VkCommandBufferBeginInfo commandBufferBeginInfo = {};
   commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   commandBufferBeginInfo.pNext = nullptr;
-  commandBufferBeginInfo.flags = 0;
+  commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
   commandBufferBeginInfo.pInheritanceInfo = nullptr;
 
   VkClearColorValue color = {{1.0f, 0.8f, 0.4f, 0.0f}};
@@ -462,8 +463,8 @@ int Core::recordCommandBuffers() {
     preClearMemBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     preClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     preClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    preClearMemBarrier.srcQueueFamilyIndex = this->device.displayQueueIndex;
-    preClearMemBarrier.dstQueueFamilyIndex = this->device.displayQueueIndex;
+    preClearMemBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; // this->device.displayQueueIndex;
+    preClearMemBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; //this->device.displayQueueIndex;
     preClearMemBarrier.image = images[i];
     preClearMemBarrier.subresourceRange = subresourceRange;
 
@@ -472,10 +473,10 @@ int Core::recordCommandBuffers() {
     postClearMemBarrier.pNext = nullptr;
     postClearMemBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     postClearMemBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    postClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    postClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    postClearMemBarrier.srcQueueFamilyIndex = this->device.displayQueueIndex;
-    postClearMemBarrier.dstQueueFamilyIndex = this->device.displayQueueIndex;
+    postClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    postClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    postClearMemBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; //this->device.displayQueueIndex;
+    postClearMemBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; //this->device.displayQueueIndex;
     postClearMemBarrier.image = images[i];
     postClearMemBarrier.subresourceRange = subresourceRange;
 
@@ -483,7 +484,7 @@ int Core::recordCommandBuffers() {
     vkBeginCommandBuffer(this->cmdBuffers[i], &commandBufferBeginInfo);
     vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &preClearMemBarrier);
     vkCmdClearColorImage(this->cmdBuffers[i], images[i], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &subresourceRange);
-    vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &postClearMemBarrier);
+    vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &postClearMemBarrier);
     if (vkEndCommandBuffer(this->cmdBuffers[i]) != VK_SUCCESS) {
       std::cout << "Failure to record cmd buffer" << std::endl;
       free(images);
@@ -492,6 +493,56 @@ int Core::recordCommandBuffers() {
   }
 
   free(images);
+  return 0;
+}
+
+void Core::draw() {
+  uint32_t imageIndex = 0;
+  vkAcquireNextImageKHR(this->device.logical, this->swapchain, UINT64_MAX, this->imageAvailableSema, VK_NULL_HANDLE, &imageIndex);
+
+  VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+  VkSubmitInfo submitInfo = {};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.pNext = nullptr;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &this->cmdBuffers[imageIndex];
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = &this->imageFinishProcessingSema;
+  submitInfo.waitSemaphoreCount = 1;
+  submitInfo.pWaitSemaphores = &this->imageAvailableSema;
+  submitInfo.pWaitDstStageMask = &stageFlags;
+
+  vkQueueSubmit(this->device.displayQueue, 1, &submitInfo, VK_NULL_HANDLE);
+
+  VkResult result;
+  VkPresentInfoKHR presentInfo = {};
+  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  presentInfo.pNext = nullptr;
+  presentInfo.swapchainCount = 1;
+  presentInfo.pSwapchains = &this->swapchain;
+  presentInfo.waitSemaphoreCount = 1;
+  presentInfo.pWaitSemaphores = &this->imageFinishProcessingSema;
+  presentInfo.pImageIndices = &imageIndex;
+  presentInfo.pResults = &result;
+
+  vkQueuePresentKHR(this->device.displayQueue, &presentInfo);
+
+  if (result != VK_SUCCESS) {
+    std::cout << "Something fishy" << std::endl;
+  }
+}
+
+int Core::initSemaphores() {
+  VkSemaphoreCreateInfo createInfo = {};
+  createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  createInfo.pNext = nullptr;
+  createInfo.flags = 0;
+  if (vkCreateSemaphore(this->device.logical, &createInfo, nullptr, &this->imageAvailableSema) != VK_SUCCESS) {
+    std::cout << "Failed to make semaphore imageAvailableSema" << std::endl;
+  }
+  if (vkCreateSemaphore(this->device.logical, &createInfo, nullptr, &this->imageFinishProcessingSema) != VK_SUCCESS) {
+    std::cout << "Failed to make semaphore imageFinishProcessingSema" << std::endl;
+  }
   return 0;
 }
 

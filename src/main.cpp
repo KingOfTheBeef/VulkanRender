@@ -1,4 +1,6 @@
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 #include "Core.h"
 #include "WindowContext.h"
@@ -11,10 +13,13 @@ int main(int argc, char** argv) {
 
   Core *core = new Core();
   core->init();
-  WindowContext *context = new WindowContext();
-  context->initialise("Vulkan Dynamic Link", 600, 600);
+  // WindowContext *context = new WindowContext();
+  // context->initialise("Vulkan Dynamic Link", 500, 500);
 
-  context->clean();
+  core->draw();
+  std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+
+  // context->clean();
   core->clean();
 
   delete(core);

@@ -59,5 +59,7 @@ VK_DEVICE_FUNCTION( vkEndCommandBuffer )
 VK_DEVICE_FUNCTION( vkCmdPipelineBarrier )
 VK_DEVICE_FUNCTION( vkCmdClearColorImage )
 
+VK_DEVICE_FUNCTION( vkQueueSubmit )
+VK_DEVICE_FUNCTION( vkCreateSemaphore )
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION
