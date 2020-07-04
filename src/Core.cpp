@@ -71,6 +71,7 @@ void Core::init() {
   initSwapchain();
 
 
+  initCommandBuffers();
 }
 
 void Core::clean() {
@@ -176,6 +177,7 @@ void Core::initDevice() {
   this->device.displayQueueIndex = queueIndices[displayIndex];
   LoadVulkanDeviceFunctions(this->device.logical);
   vkGetDeviceQueue(this->device.logical, this->device.graphicQueueIndex, 0, &this->device.graphicQueue);
+  vkGetDeviceQueue(this->device.logical, this->device.displayQueueIndex, 0, &this->device.displayQueue);
   delete[](physicalDevices);
 }
 
@@ -397,6 +399,37 @@ int Core::initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurf
 }
 
 int Core::initCommandBuffers() {
+  VkCommandPoolCreateInfo cmdPoolCreateInfo = {};
+  cmdPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  cmdPoolCreateInfo.pNext = nullptr;
+  cmdPoolCreateInfo.flags = 0;
+  cmdPoolCreateInfo.queueFamilyIndex = this->device.displayQueueIndex;
+
+  if (vkCreateCommandPool(this->device.logical, &cmdPoolCreateInfo, nullptr, &this->cmdPool) != VK_SUCCESS) {
+    std::cout << "Failure to create command pool" << std::endl;
+  }
+
+  this->cmdBufferCount = 0;
+  vkGetSwapchainImagesKHR(this->device.logical, this->swapchain, &this->cmdBufferCount, nullptr);
+  if ( this->cmdBufferCount == 0 ) {
+    std::cout << "Failure to get swapchain images" << std::endl;
+    return -1;
+  }
+
+  this->cmdBuffers = new VkCommandBuffer[this->cmdBufferCount];
+
+  VkCommandBufferAllocateInfo allocateInfo = {};
+  allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocateInfo.pNext = nullptr;
+  allocateInfo.commandPool = this->cmdPool;
+  allocateInfo.commandBufferCount = this->cmdBufferCount;
+  allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+  if (vkAllocateCommandBuffers(this->device.logical, &allocateInfo, this->cmdBuffers) != VK_SUCCESS) {
+    std::cout << "Failed to allocate command buffers" << std::endl;
+    return -1;
+  }
+
   return 0;
 }
 

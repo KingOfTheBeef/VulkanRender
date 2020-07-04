@@ -44,11 +44,15 @@ VK_INSTANCE_FUNCTION(vkCreateWin32SurfaceKHR)
 VK_DEVICE_FUNCTION(vkDestroyDevice)
 VK_DEVICE_FUNCTION(vkGetDeviceQueue)
 VK_DEVICE_FUNCTION(vkDeviceWaitIdle)
+
 // Swapchain Functions -> Will throw error if device is not enabled with swapchain extension
 VK_DEVICE_FUNCTION( vkCreateSwapchainKHR )
 VK_DEVICE_FUNCTION( vkDestroySwapchainKHR )
 VK_DEVICE_FUNCTION( vkGetSwapchainImagesKHR )
 VK_DEVICE_FUNCTION( vkAcquireNextImageKHR )
 VK_DEVICE_FUNCTION( vkQueuePresentKHR )
+
+VK_DEVICE_FUNCTION( vkCreateCommandPool )
+VK_DEVICE_FUNCTION( vkAllocateCommandBuffers )
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

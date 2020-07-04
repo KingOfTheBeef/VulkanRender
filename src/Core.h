@@ -29,7 +29,11 @@ private:
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
     VkCommandPool cmdPool;
+
+    uint32_t cmdBufferCount;
+    // TODO: Need to add code to free memory allocated
     VkCommandBuffer *cmdBuffers;
+
     VkSemaphore imageAvailableSema;
     VkSemaphore imageFinishProcessingSema;
 public:
