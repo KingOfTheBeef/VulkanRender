@@ -6,28 +6,26 @@
 
 #include <iostream>
 #include "Core.h"
+
 const uint8_t layerCount = 2;
 const char *layers[] = {"VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_api_dump"};
+const uint32_t targetExtensionCount = 2;
+const char* targetExtensions[targetExtensionCount] = {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME};
+const uint32_t targetDeviceExtensionsCount = 1;
+const char* targetDeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
 
 #define graphicIndex 0
 #define displayIndex 1
 #define queueIndexMax 2
 
-void Core::populateLayerInfo(VkInstanceCreateInfo &info) {
+void Core::populateLayerInfo(VkInstanceCreateInfo *info) {
   // TODO: Add checks for layer availability
-  info.enabledLayerCount = layerCount;
-  info.ppEnabledLayerNames = layers;
+  info->enabledLayerCount = layerCount;
+  info->ppEnabledLayerNames = layers;
 }
 
-void Core::init() {
-  LoadVulkanLibrary(&this->vulkanLib);
-  LoadVulkanSystemFunctions(this->vulkanLib);
-
-  VkInstanceCreateInfo info = {};
-  info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-  // TODO: Check here for enable layers...
-  populateLayerInfo(info);
-
+int Core::populateExtensionInfo(VkInstanceCreateInfo *info) {
   uint32_t extensionCount = 0;
   VkExtensionProperties extensions[20];
   vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -36,9 +34,6 @@ void Core::init() {
 
   // Code to enable extensions (to allow on-screen rendering)
   // Assuming windows here
-  // TODO: Put this in a function, figure the best way to deal with arrays, use vector maybe?
-  const uint32_t targetExtensionCount = 2;
-  const char* targetExtensions[targetExtensionCount] = {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME};
   for (int i = 0; i < targetExtensionCount; i++) {
     bool isPresent = false;
     for (int j = 0; j < extensionCount; j++) {
@@ -48,40 +43,68 @@ void Core::init() {
       }
     }
     if (!isPresent) {
-      std::cout << "Unable to find required extension: " << targetExtensions[i] << std::endl;
-      return;
+      return false;
     } else {
       std::cout << "Found required extension: " << targetExtensions[i] << std::endl;
     }
   }
 
-  info.enabledExtensionCount = targetExtensionCount;
-  info.ppEnabledExtensionNames = targetExtensions;
+  info->enabledExtensionCount = targetExtensionCount;
+  info->ppEnabledExtensionNames = targetExtensions;
+  return true;
+}
 
+void Core::init() {
+  LoadVulkanLibrary(&this->vulkanLib);
+  LoadVulkanSystemFunctions(this->vulkanLib);
+
+  VkInstanceCreateInfo info = {};
+  info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+  // TODO: Check here for if we want to enable layers, (debug purposes)...
+  populateLayerInfo(&info);
+  populateExtensionInfo(&info);
   // Make instance
   if (vkCreateInstance(&info, nullptr, &this->instance) != VK_SUCCESS) {
     std::cout << "Failure to create instance" << std::endl;
   }
 
   LoadVulkanInstanceFunctions(this->instance);
-
   initWindowContext();
   initSurface();
   initDevice();
   initSwapchain();
   initSemaphores();
-
-
   initCommandBuffers();
+  recordCommandBuffers();
 }
 
 void Core::clean() {
-  if (this->swapchain != VK_NULL_HANDLE) {
-    vkDestroySwapchainKHR(this->device.logical, this->swapchain, nullptr);
-  }
-
   if (this->device.logical != VK_NULL_HANDLE) {
     vkDeviceWaitIdle(this->device.logical);
+
+    if (this->cmdBufferCount > 0) {
+      vkFreeCommandBuffers(this->device.logical, this->cmdPool, this->cmdBufferCount, this->cmdBuffers);
+      this->cmdBufferCount = 0;
+      delete(this->cmdBuffers);
+    }
+
+    if (this->cmdPool != VK_NULL_HANDLE) {
+      vkDestroyCommandPool(this->device.logical, this->cmdPool, nullptr);
+      this->cmdPool = VK_NULL_HANDLE;
+    }
+
+    if (this->imageFinishProcessingSema != VK_NULL_HANDLE) {
+      vkDestroySemaphore(this->device.logical, this->imageFinishProcessingSema, nullptr);
+    }
+
+    if (this->imageAvailableSema != VK_NULL_HANDLE) {
+      vkDestroySemaphore(this->device.logical, this->imageAvailableSema, nullptr);
+    }
+
+    if (this->swapchain != VK_NULL_HANDLE) {
+      vkDestroySwapchainKHR(this->device.logical, this->swapchain, nullptr);
+    }
+
     vkDestroyDevice(this->device.logical, nullptr);
   }
 
@@ -100,7 +123,8 @@ void Core::clean() {
   }
 }
 
-Core::Core() : surface(VK_NULL_HANDLE), swapchain(VK_NULL_HANDLE) {
+Core::Core() : surface(VK_NULL_HANDLE), swapchain(VK_NULL_HANDLE),
+imageAvailableSema(VK_NULL_HANDLE), imageFinishProcessingSema(VK_NULL_HANDLE) {
   this->vulkanLib = nullptr;
   this->instance = VK_NULL_HANDLE;
   this->device = {VK_NULL_HANDLE, VK_NULL_HANDLE};
@@ -110,50 +134,20 @@ Core::Core() : surface(VK_NULL_HANDLE), swapchain(VK_NULL_HANDLE) {
 /* TODO: This function too long. Future problem: only supports using a single device.
    This will require changes to the way we import device-level functions. */
 void Core::initDevice() {
-  uint32_t deviceCount;
-  vkEnumeratePhysicalDevices(this->instance, &deviceCount, nullptr);
-  if (deviceCount == 0) {
-    std::cout << "No devices detected!" << std::endl;
-    return;
-  }
-  // Select a physical device
-  VkPhysicalDevice *physicalDevices = new VkPhysicalDevice[deviceCount];
-  vkEnumeratePhysicalDevices(this->instance, &deviceCount, physicalDevices);
-  uint32_t queueIndices[queueIndexMax];
-  const uint8_t targetExtensionCount = 1;
-  const char* targetExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-  for (uint32_t i = 0; i < deviceCount; i++) {
-    if (validatePhysicalDevice(physicalDevices[i], queueIndices, targetExtensionCount, targetExtensions)) {
-      this->device.physical = physicalDevices[i];
-      break;
-    }
-  }
+  selectPhysicalDevice();
 
-  if (this->device.physical == VK_NULL_HANDLE) {
-    std::cout << "Failed to find a physical handle" << std::endl;
-  }
-
+  // Populate queue create infos
   uint8_t queuesUsedCount = 0;
   const float queuePriorities = 1.0f;
   VkDeviceQueueCreateInfo queueCreateInfo[queueIndexMax];
-
   queuesUsedCount++;
-  queueCreateInfo[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-  queueCreateInfo[0].pNext = nullptr;
-  queueCreateInfo[0].flags = 0;
-  queueCreateInfo[0].queueFamilyIndex = queueIndices[graphicIndex];
-  queueCreateInfo[0].queueCount = 1;
-  queueCreateInfo[0].pQueuePriorities = &queuePriorities;
-  if (queueIndices[graphicIndex] != queueIndices[displayIndex]) { // TODO: This is kinda filthy
+  populateQueueCreateInfo(&queueCreateInfo[0], this->device.graphicQueueIndex, &queuePriorities);
+  if (this->device.graphicQueueIndex != this->device.displayQueueIndex) { // This is kinda filthy
     queuesUsedCount++;
-    queueCreateInfo[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo[1].pNext = nullptr;
-    queueCreateInfo[1].flags = 0;
-    queueCreateInfo[1].queueFamilyIndex = queueIndices[displayIndex];
-    queueCreateInfo[1].queueCount = 1;
-    queueCreateInfo[1].pQueuePriorities = &queuePriorities;
+    populateQueueCreateInfo(&queueCreateInfo[1], this->device.displayQueueIndex, &queuePriorities);
   }
 
+  // Populate device create infos
   VkDeviceCreateInfo deviceInfo = {};
   deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   deviceInfo.flags = 0;
@@ -162,10 +156,9 @@ void Core::initDevice() {
   deviceInfo.ppEnabledLayerNames = nullptr;
   deviceInfo.queueCreateInfoCount = queuesUsedCount;
   deviceInfo.pQueueCreateInfos = queueCreateInfo;
-  deviceInfo.enabledExtensionCount = 1;
-  deviceInfo.ppEnabledExtensionNames = &targetExtensions[0];
+  deviceInfo.enabledExtensionCount = targetDeviceExtensionsCount;
+  deviceInfo.ppEnabledExtensionNames = &targetDeviceExtensions;
   deviceInfo.pEnabledFeatures = nullptr;
-
 
   VkPhysicalDeviceProperties properties;
   vkGetPhysicalDeviceProperties(this->device.physical, &properties);
@@ -174,12 +167,19 @@ void Core::initDevice() {
     std::cout << "Failed to create logical device" << std::endl;
   }
 
-  this->device.graphicQueueIndex = queueIndices[graphicIndex];
-  this->device.displayQueueIndex = queueIndices[displayIndex];
+  // Load vulkan device functions and get queue handles
   LoadVulkanDeviceFunctions(this->device.logical);
   vkGetDeviceQueue(this->device.logical, this->device.graphicQueueIndex, 0, &this->device.graphicQueue);
   vkGetDeviceQueue(this->device.logical, this->device.displayQueueIndex, 0, &this->device.displayQueue);
-  delete[](physicalDevices);
+}
+
+void Core::populateQueueCreateInfo(VkDeviceQueueCreateInfo *queueCreateInfo, uint32_t queueFamilyIndex, const float *queuePriorities) {
+  queueCreateInfo->sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  queueCreateInfo->pNext = nullptr;
+  queueCreateInfo->flags = 0;
+  queueCreateInfo->queueFamilyIndex = queueFamilyIndex;
+  queueCreateInfo->queueCount = 1;
+  queueCreateInfo->pQueuePriorities = queuePriorities;
 }
 
 void Core::initSurface() {
@@ -197,50 +197,51 @@ void Core::initSurface() {
 
 void Core::initWindowContext() {
   this->windowContext = new WindowContext();
-  this->windowContext->initialise("Dynamic Link", 500, 500);
+  this->windowContext->initialise("Dynamic Link", 600, 600);
 }
 
-bool Core::validatePhysicalDevice(VkPhysicalDevice physicalDevice, uint32_t *queueIndices, const uint8_t targetExtensionCount,
-                                  const char **targetExtensions) {
-  // Check for queue
+// Validate and get the device queues that we need, the queue family indices will be stored in the queueIndices array
+bool Core::checkPhysicalDeviceQueues(VkPhysicalDevice physicalDevice, uint32_t *queueIndices) {
   uint32_t queueFamilyCount = 0;
   VkQueueFamilyProperties queueFamilyProperties[20];
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
   queueFamilyCount = queueFamilyCount<20?queueFamilyCount:20;
   vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilyProperties);
-
   VkBool32 surfaceSupport;
-  //TODO: Forgive me for this terrible code, what am I doing with these bitwise :(
+
+  // The code below is pretty messy but what it aims to do is to find if we have queues which provide surface support
+  // and/or graphic operations support (since you can do off screen rendering), we prefer a setup where they are the same
+  // family
   uint8_t queueFoundBitmap = 0b11;
   for (int i = 0; i < queueFamilyCount; i++) {
     vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, this->surface, &surfaceSupport);
-    if (queueFamilyProperties[i].queueCount > 0
-        && queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      if (queueFoundBitmap & 0b1) {
+    if (queueFamilyProperties[i].queueCount > 0) {
+      if (queueFoundBitmap & 0b1 && queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
         queueIndices[graphicIndex] = i;
         queueFoundBitmap ^= 0b1;
+        // We check here again becaause we prefer it when we can have both the graphic and display as the same family
+        if (surfaceSupport == VK_TRUE) {
+          queueIndices[displayIndex] = i;
+          queueFoundBitmap = 0b00;
+          break;
+        }
       }
-      if (surfaceSupport == VK_TRUE) {
+      if (queueFoundBitmap & 0b10 && surfaceSupport == VK_TRUE) {
         queueIndices[displayIndex] = i;
-        queueFoundBitmap = 0b00;
-        break;
+        queueFoundBitmap ^= 0b10;
       }
-    } else if (surfaceSupport == VK_TRUE && queueFoundBitmap & 0b10) {
-      queueIndices[displayIndex] = i;
-      queueFoundBitmap ^= 0b10;
     }
   }
 
-  if ((queueFoundBitmap ^ 0b11) != 0b11) {
-    std::cout << "Failed to find queues to be satisfactory." << std::endl;
-    return false;
-  }
+  return (queueFoundBitmap ^ 0b11) == 0b11;
+}
 
-  // Check for swap chain extension
+bool Core::checkPhysicalDeviceExtensions(VkPhysicalDevice physicalDevice, const uint8_t targetExtensionCount, const char **targetExtensions) {
+  // Check for device extensions (e.g. swap chain)
   uint32_t extensionCount = 0;
   VkExtensionProperties extensionProperties[20];
   vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
-  extensionCount = extensionCount<20?extensionCount:20;
+  extensionCount = extensionCount < 20 ? extensionCount : 20;
   vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, extensionProperties);
 
   for (uint8_t i = 0; i < targetExtensionCount; i++) {
@@ -252,22 +253,17 @@ bool Core::validatePhysicalDevice(VkPhysicalDevice physicalDevice, uint32_t *que
       }
     }
     if (!extensionFound) {
-      std::cout << "Failed to find device extension " << targetExtensions[i] << std::endl;
       return false;
     }
   }
-
   return true;
 }
 
-
-// TODO: Need to refactor this function
 void Core::initSwapchain() {
   VkPresentModeKHR presentMode;
   initPresentMode(&presentMode);
   VkSurfaceCapabilitiesKHR surfaceCapabilities;
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->device.physical, this->surface, &surfaceCapabilities);
-  uint32_t imageCount = getImageCount(surfaceCapabilities);
   VkSurfaceFormatKHR surfaceFormat;
   initSurfaceFormat(&surfaceFormat);
 
@@ -305,8 +301,8 @@ void Core::initSwapchain() {
 
 // Function finds the extent of the images/surface we use
 void Core::initExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
-  if (surfaceCapabilities.currentExtent.width == -1) {
-    // TODO: Fix the use of 500
+  if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF) {
+    // TODO: Fix the use of 500, should be whatever the window dimensions are
     extent->width = extent->height = 500;
     if (extent-> width < surfaceCapabilities.minImageExtent.width) {
       extent->width = surfaceCapabilities.minImageExtent.width;
@@ -356,7 +352,7 @@ uint32_t Core::getImageCount(VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
           :surfaceCapabilities.minImageCount;
 }
 
-// Function to get flags for how we will use the images, We are looking for transfer and
+// Function to get flags for how we will use the images, We are looking for transfer and color attachment (render)
 int Core::initImageUsageFlags(VkImageUsageFlags *usageFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
   if (surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT
       && surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
@@ -430,7 +426,6 @@ int Core::initCommandBuffers() {
     std::cout << "Failed to allocate command buffers" << std::endl;
     return -1;
   }
-  recordCommandBuffers();
 
   return 0;
 }
@@ -446,7 +441,7 @@ int Core::recordCommandBuffers() {
   commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
   commandBufferBeginInfo.pInheritanceInfo = nullptr;
 
-  VkClearColorValue color = {{1.0f, 0.8f, 0.4f, 0.0f}};
+  VkClearColorValue color = {{1.0f, 0.4f, 0.4f, 0.0f}};
 
   VkImageSubresourceRange subresourceRange = {};
   subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -463,8 +458,8 @@ int Core::recordCommandBuffers() {
     preClearMemBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     preClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     preClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    preClearMemBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; // this->device.displayQueueIndex;
-    preClearMemBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; //this->device.displayQueueIndex;
+    preClearMemBarrier.srcQueueFamilyIndex = this->device.displayQueueIndex;
+    preClearMemBarrier.dstQueueFamilyIndex = this->device.displayQueueIndex;
     preClearMemBarrier.image = images[i];
     preClearMemBarrier.subresourceRange = subresourceRange;
 
@@ -475,8 +470,8 @@ int Core::recordCommandBuffers() {
     postClearMemBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     postClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     postClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    postClearMemBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; //this->device.displayQueueIndex;
-    postClearMemBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; //this->device.displayQueueIndex;
+    postClearMemBarrier.srcQueueFamilyIndex = this->device.displayQueueIndex;
+    postClearMemBarrier.dstQueueFamilyIndex = this->device.displayQueueIndex;
     postClearMemBarrier.image = images[i];
     postClearMemBarrier.subresourceRange = subresourceRange;
 
@@ -487,12 +482,12 @@ int Core::recordCommandBuffers() {
     vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &postClearMemBarrier);
     if (vkEndCommandBuffer(this->cmdBuffers[i]) != VK_SUCCESS) {
       std::cout << "Failure to record cmd buffer" << std::endl;
-      free(images);
+      delete(images);
       return -1;
     }
   }
 
-  free(images);
+  delete(images);
   return 0;
 }
 
@@ -542,6 +537,36 @@ int Core::initSemaphores() {
   }
   if (vkCreateSemaphore(this->device.logical, &createInfo, nullptr, &this->imageFinishProcessingSema) != VK_SUCCESS) {
     std::cout << "Failed to make semaphore imageFinishProcessingSema" << std::endl;
+  }
+  return 0;
+}
+
+// Function which sets the physical device and queue indexes
+int Core::selectPhysicalDevice() {
+  uint32_t deviceCount;
+  vkEnumeratePhysicalDevices(this->instance, &deviceCount, nullptr);
+  if (deviceCount == 0) {
+    std::cout << "No devices detected!" << std::endl;
+    return -1;
+  }
+  // Select a physical device
+  VkPhysicalDevice *physicalDevices = new VkPhysicalDevice[deviceCount];
+  vkEnumeratePhysicalDevices(this->instance, &deviceCount, physicalDevices);
+  uint32_t queueIndices[queueIndexMax];
+  for (uint32_t i = 0; i < deviceCount; i++) {
+    if (checkPhysicalDeviceQueues(physicalDevices[i], queueIndices)
+        && checkPhysicalDeviceExtensions(physicalDevices[i], targetDeviceExtensionsCount, &targetDeviceExtensions)) {
+      this->device.physical = physicalDevices[i];
+      std::cout << this->device.physical << std::endl;
+      break;
+    }
+  }
+  this->device.graphicQueueIndex = queueIndices[graphicIndex];
+  this->device.displayQueueIndex = queueIndices[displayIndex];
+  delete(physicalDevices);
+
+  if (this->device.physical == VK_NULL_HANDLE) {
+    return -1;
   }
   return 0;
 }

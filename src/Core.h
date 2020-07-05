@@ -44,11 +44,18 @@ public:
 
 
 private:
-    void populateLayerInfo(VkInstanceCreateInfo &info);
+    void populateLayerInfo(VkInstanceCreateInfo *info);
+    int populateExtensionInfo(VkInstanceCreateInfo *info);
+    void populateQueueCreateInfo(VkDeviceQueueCreateInfo *queueCreateInfo, uint32_t queueFamilyIndex, const float *queuePriorities);
     void initDevice();
     void initSurface();
     void initWindowContext();
-    bool validatePhysicalDevice(VkPhysicalDevice physicalDevice, uint32_t queueIndices[], uint8_t targetExtensionCount, const char* targetExtensions[]);
+
+    int selectPhysicalDevice();
+
+    bool checkPhysicalDeviceQueues(VkPhysicalDevice physicalDevice, uint32_t *queueIndices);
+    bool checkPhysicalDeviceExtensions(VkPhysicalDevice physicalDevice, const uint8_t targetExtensionCount, const char **targetExtensions);
+
     void initSwapchain();
     void initExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
     int initPresentMode(VkPresentModeKHR *presentMode);
