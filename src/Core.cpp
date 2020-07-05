@@ -2,8 +2,11 @@
 // Created by jonat on 22/05/2020.
 //
 
-// TODO:Need to sort out magic numbers
-
+/* TODO: Deal with constants
+ * Sometimes we pass value into functions to be initialised, others we get the return value. Perhaps make it consistent
+ * Add code for checking if layers are supported (and if they are even enabled)
+ * Maybe perhaps have it so that core is a memeber of window, (rather than the other way around> not sure if I want this)
+ */
 #include <iostream>
 #include "Core.h"
 
