@@ -82,33 +82,33 @@ void Core::init() {
 }
 
 void Core::clean() {
-  if (this->device.logical != VK_NULL_HANDLE) {
-    vkDeviceWaitIdle(this->device.logical);
+  if (this->deviceInfo.logical != VK_NULL_HANDLE) {
+    vkDeviceWaitIdle(this->deviceInfo.logical);
 
     if (this->cmdBufferCount > 0) {
-      vkFreeCommandBuffers(this->device.logical, this->cmdPool, this->cmdBufferCount, this->cmdBuffers);
+      vkFreeCommandBuffers(this->deviceInfo.logical, this->cmdPool, this->cmdBufferCount, this->cmdBuffers);
       this->cmdBufferCount = 0;
       delete(this->cmdBuffers);
     }
 
     if (this->cmdPool != VK_NULL_HANDLE) {
-      vkDestroyCommandPool(this->device.logical, this->cmdPool, nullptr);
+      vkDestroyCommandPool(this->deviceInfo.logical, this->cmdPool, nullptr);
       this->cmdPool = VK_NULL_HANDLE;
     }
 
     if (this->imageFinishProcessingSema != VK_NULL_HANDLE) {
-      vkDestroySemaphore(this->device.logical, this->imageFinishProcessingSema, nullptr);
+      vkDestroySemaphore(this->deviceInfo.logical, this->imageFinishProcessingSema, nullptr);
     }
 
     if (this->imageAvailableSema != VK_NULL_HANDLE) {
-      vkDestroySemaphore(this->device.logical, this->imageAvailableSema, nullptr);
+      vkDestroySemaphore(this->deviceInfo.logical, this->imageAvailableSema, nullptr);
     }
 
-    if (this->swapchain != VK_NULL_HANDLE) {
-      vkDestroySwapchainKHR(this->device.logical, this->swapchain, nullptr);
+    if (this->swapchainInfo.swapchain != VK_NULL_HANDLE) {
+      vkDestroySwapchainKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, nullptr);
     }
 
-    vkDestroyDevice(this->device.logical, nullptr);
+    vkDestroyDevice(this->deviceInfo.logical, nullptr);
   }
 
   if (this->surface != VK_NULL_HANDLE) {
@@ -126,11 +126,12 @@ void Core::clean() {
   }
 }
 
-Core::Core() : surface(VK_NULL_HANDLE), swapchain(VK_NULL_HANDLE),
+Core::Core() : surface(VK_NULL_HANDLE),
 imageAvailableSema(VK_NULL_HANDLE), imageFinishProcessingSema(VK_NULL_HANDLE) {
   this->vulkanLib = nullptr;
   this->instance = VK_NULL_HANDLE;
-  this->device = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+  this->deviceInfo = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+  this->swapchainInfo = { VK_NULL_HANDLE, 0, nullptr };
 }
 
 
@@ -144,10 +145,10 @@ void Core::initDevice() {
   const float queuePriorities = 1.0f;
   VkDeviceQueueCreateInfo queueCreateInfo[queueIndexMax];
   queuesUsedCount++;
-  populateQueueCreateInfo(&queueCreateInfo[0], this->device.graphicQueueIndex, &queuePriorities);
-  if (this->device.graphicQueueIndex != this->device.displayQueueIndex) { // This is kinda filthy
+  populateQueueCreateInfo(&queueCreateInfo[0], this->deviceInfo.graphicQueueIndex, &queuePriorities);
+  if (this->deviceInfo.graphicQueueIndex != this->deviceInfo.displayQueueIndex) { // This is kinda filthy
     queuesUsedCount++;
-    populateQueueCreateInfo(&queueCreateInfo[1], this->device.displayQueueIndex, &queuePriorities);
+    populateQueueCreateInfo(&queueCreateInfo[1], this->deviceInfo.displayQueueIndex, &queuePriorities);
   }
 
   // Populate device create infos
@@ -164,16 +165,16 @@ void Core::initDevice() {
   deviceInfo.pEnabledFeatures = nullptr;
 
   VkPhysicalDeviceProperties properties;
-  vkGetPhysicalDeviceProperties(this->device.physical, &properties);
+  vkGetPhysicalDeviceProperties(this->deviceInfo.physical, &properties);
   std::cout << "Device Selected: " << properties.deviceName << std::endl;
-  if (vkCreateDevice(this->device.physical, &deviceInfo, nullptr, &this->device.logical) != VK_SUCCESS) {
+  if (vkCreateDevice(this->deviceInfo.physical, &deviceInfo, nullptr, &this->deviceInfo.logical) != VK_SUCCESS) {
     std::cout << "Failed to create logical device" << std::endl;
   }
 
   // Load vulkan device functions and get queue handles
-  LoadVulkanDeviceFunctions(this->device.logical);
-  vkGetDeviceQueue(this->device.logical, this->device.graphicQueueIndex, 0, &this->device.graphicQueue);
-  vkGetDeviceQueue(this->device.logical, this->device.displayQueueIndex, 0, &this->device.displayQueue);
+  LoadVulkanDeviceFunctions(this->deviceInfo.logical);
+  vkGetDeviceQueue(this->deviceInfo.logical, this->deviceInfo.graphicQueueIndex, 0, &this->deviceInfo.graphicQueue);
+  vkGetDeviceQueue(this->deviceInfo.logical, this->deviceInfo.displayQueueIndex, 0, &this->deviceInfo.displayQueue);
 }
 
 void Core::populateQueueCreateInfo(VkDeviceQueueCreateInfo *queueCreateInfo, uint32_t queueFamilyIndex, const float *queuePriorities) {
@@ -266,11 +267,11 @@ void Core::initSwapchain() {
   VkPresentModeKHR presentMode;
   initPresentMode(&presentMode);
   VkSurfaceCapabilitiesKHR surfaceCapabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->device.physical, this->surface, &surfaceCapabilities);
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->deviceInfo.physical, this->surface, &surfaceCapabilities);
   VkSurfaceFormatKHR surfaceFormat;
   initSurfaceFormat(&surfaceFormat);
 
-  VkSwapchainKHR prevSwapchain = this->swapchain;
+  VkSwapchainKHR prevSwapchain = this->swapchainInfo.swapchain;
   VkSwapchainCreateInfoKHR info = {};
   info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   info.pNext = nullptr;
@@ -291,14 +292,17 @@ void Core::initSwapchain() {
   info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   info.presentMode = presentMode;
   info.clipped = VK_TRUE;
-  info.oldSwapchain = this->swapchain;
+  info.oldSwapchain = this->swapchainInfo.swapchain;
 
-  if(vkCreateSwapchainKHR(this->device.logical, &info, nullptr, &this->swapchain) != VK_SUCCESS) {
+  if(vkCreateSwapchainKHR(this->deviceInfo.logical, &info, nullptr, &this->swapchainInfo.swapchain) != VK_SUCCESS) {
     std::cout << "Error making swapchain" << std::endl;
   }
-
+  vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->swapchainInfo.imageCount, nullptr);
+  if (this->swapchainInfo.imageCount == 0) {
+    std::cout << "WARNING: Swapchain initialised with 0 images!" << std::endl;
+  }
   if (prevSwapchain != VK_NULL_HANDLE) {
-    vkDestroySwapchainKHR(this->device.logical, prevSwapchain, nullptr);
+    vkDestroySwapchainKHR(this->deviceInfo.logical, prevSwapchain, nullptr);
   }
 }
 
@@ -327,9 +331,9 @@ void Core::initExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCap
 int Core::initPresentMode(VkPresentModeKHR *presentMode) {
   uint32_t presentModeCount = 0;
   VkPresentModeKHR presentModes[20];
-  vkGetPhysicalDeviceSurfacePresentModesKHR(this->device.physical, this->surface, &presentModeCount, nullptr);
+  vkGetPhysicalDeviceSurfacePresentModesKHR(this->deviceInfo.physical, this->surface, &presentModeCount, nullptr);
   presentModeCount = presentModeCount<20?presentModeCount:20;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(this->device.physical, this->surface, &presentModeCount, presentModes);
+  vkGetPhysicalDeviceSurfacePresentModesKHR(this->deviceInfo.physical, this->surface, &presentModeCount, presentModes);
 
   bool foundSuitablePresentMode = true;
   for (uint32_t i = 0; i < presentModeCount; i++) {
@@ -371,9 +375,9 @@ int Core::initImageUsageFlags(VkImageUsageFlags *usageFlags, VkSurfaceCapabiliti
 int Core::initSurfaceFormat(VkSurfaceFormatKHR *surfaceFormat) {
   uint32_t surfaceFormatsCount = 0;
   VkSurfaceFormatKHR surfaceFormats[100];
-  vkGetPhysicalDeviceSurfaceFormatsKHR(this->device.physical, this->surface, &surfaceFormatsCount, nullptr);
+  vkGetPhysicalDeviceSurfaceFormatsKHR(this->deviceInfo.physical, this->surface, &surfaceFormatsCount, nullptr);
   surfaceFormatsCount = surfaceFormatsCount<100? surfaceFormatsCount:100;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(this->device.physical, this->surface, &surfaceFormatsCount, surfaceFormats);
+  vkGetPhysicalDeviceSurfaceFormatsKHR(this->deviceInfo.physical, this->surface, &surfaceFormatsCount, surfaceFormats);
 
   // Default to the first available format
   *surfaceFormat = surfaceFormats[0];
@@ -403,18 +407,18 @@ int Core::initCommandBuffers() {
   cmdPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   cmdPoolCreateInfo.pNext = nullptr;
   cmdPoolCreateInfo.flags = 0;
-  cmdPoolCreateInfo.queueFamilyIndex = this->device.displayQueueIndex;
+  cmdPoolCreateInfo.queueFamilyIndex = this->deviceInfo.displayQueueIndex;
 
-  if (vkCreateCommandPool(this->device.logical, &cmdPoolCreateInfo, nullptr, &this->cmdPool) != VK_SUCCESS) {
+  if (vkCreateCommandPool(this->deviceInfo.logical, &cmdPoolCreateInfo, nullptr, &this->cmdPool) != VK_SUCCESS) {
     std::cout << "Failure to create command pool" << std::endl;
   }
 
-  this->cmdBufferCount = 0;
-  vkGetSwapchainImagesKHR(this->device.logical, this->swapchain, &this->cmdBufferCount, nullptr);
-  if ( this->cmdBufferCount == 0 ) {
-    std::cout << "Failure to get swapchain images" << std::endl;
+  // vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->cmdBufferCount, nullptr);
+  if ( this->swapchainInfo.imageCount == 0 ) {
+    std::cout << "Failure: swapchain has 0 images" << std::endl;
     return -1;
   }
+  this->cmdBufferCount = this->swapchainInfo.imageCount;
 
   this->cmdBuffers = new VkCommandBuffer[this->cmdBufferCount];
 
@@ -425,7 +429,7 @@ int Core::initCommandBuffers() {
   allocateInfo.commandBufferCount = this->cmdBufferCount;
   allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
-  if (vkAllocateCommandBuffers(this->device.logical, &allocateInfo, this->cmdBuffers) != VK_SUCCESS) {
+  if (vkAllocateCommandBuffers(this->deviceInfo.logical, &allocateInfo, this->cmdBuffers) != VK_SUCCESS) {
     std::cout << "Failed to allocate command buffers" << std::endl;
     return -1;
   }
@@ -436,7 +440,7 @@ int Core::initCommandBuffers() {
 int Core::recordCommandBuffers() {
   // Think about making images a class property
   VkImage *images = new VkImage[this->cmdBufferCount];
-  vkGetSwapchainImagesKHR(this->device.logical, this->swapchain, &this->cmdBufferCount, images);
+  vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->cmdBufferCount, images);
 
   VkCommandBufferBeginInfo commandBufferBeginInfo = {};
   commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -461,8 +465,8 @@ int Core::recordCommandBuffers() {
     preClearMemBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     preClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     preClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    preClearMemBarrier.srcQueueFamilyIndex = this->device.displayQueueIndex;
-    preClearMemBarrier.dstQueueFamilyIndex = this->device.displayQueueIndex;
+    preClearMemBarrier.srcQueueFamilyIndex = this->deviceInfo.displayQueueIndex;
+    preClearMemBarrier.dstQueueFamilyIndex = this->deviceInfo.displayQueueIndex;
     preClearMemBarrier.image = images[i];
     preClearMemBarrier.subresourceRange = subresourceRange;
 
@@ -473,8 +477,8 @@ int Core::recordCommandBuffers() {
     postClearMemBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     postClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     postClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    postClearMemBarrier.srcQueueFamilyIndex = this->device.displayQueueIndex;
-    postClearMemBarrier.dstQueueFamilyIndex = this->device.displayQueueIndex;
+    postClearMemBarrier.srcQueueFamilyIndex = this->deviceInfo.displayQueueIndex;
+    postClearMemBarrier.dstQueueFamilyIndex = this->deviceInfo.displayQueueIndex;
     postClearMemBarrier.image = images[i];
     postClearMemBarrier.subresourceRange = subresourceRange;
 
@@ -496,7 +500,7 @@ int Core::recordCommandBuffers() {
 
 void Core::draw() {
   uint32_t imageIndex = 0;
-  vkAcquireNextImageKHR(this->device.logical, this->swapchain, UINT64_MAX, this->imageAvailableSema, VK_NULL_HANDLE, &imageIndex);
+  vkAcquireNextImageKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, UINT64_MAX, this->imageAvailableSema, VK_NULL_HANDLE, &imageIndex);
 
   VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
   VkSubmitInfo submitInfo = {};
@@ -510,20 +514,20 @@ void Core::draw() {
   submitInfo.pWaitSemaphores = &this->imageAvailableSema;
   submitInfo.pWaitDstStageMask = &stageFlags;
 
-  vkQueueSubmit(this->device.displayQueue, 1, &submitInfo, VK_NULL_HANDLE);
+  vkQueueSubmit(this->deviceInfo.displayQueue, 1, &submitInfo, VK_NULL_HANDLE);
 
   VkResult result;
   VkPresentInfoKHR presentInfo = {};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
   presentInfo.pNext = nullptr;
   presentInfo.swapchainCount = 1;
-  presentInfo.pSwapchains = &this->swapchain;
+  presentInfo.pSwapchains = &this->swapchainInfo.swapchain;
   presentInfo.waitSemaphoreCount = 1;
   presentInfo.pWaitSemaphores = &this->imageFinishProcessingSema;
   presentInfo.pImageIndices = &imageIndex;
   presentInfo.pResults = &result;
 
-  vkQueuePresentKHR(this->device.displayQueue, &presentInfo);
+  vkQueuePresentKHR(this->deviceInfo.displayQueue, &presentInfo);
 
   if (result != VK_SUCCESS) {
     std::cout << "Something fishy" << std::endl;
@@ -535,10 +539,10 @@ int Core::initSemaphores() {
   createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   createInfo.pNext = nullptr;
   createInfo.flags = 0;
-  if (vkCreateSemaphore(this->device.logical, &createInfo, nullptr, &this->imageAvailableSema) != VK_SUCCESS) {
+  if (vkCreateSemaphore(this->deviceInfo.logical, &createInfo, nullptr, &this->imageAvailableSema) != VK_SUCCESS) {
     std::cout << "Failed to make semaphore imageAvailableSema" << std::endl;
   }
-  if (vkCreateSemaphore(this->device.logical, &createInfo, nullptr, &this->imageFinishProcessingSema) != VK_SUCCESS) {
+  if (vkCreateSemaphore(this->deviceInfo.logical, &createInfo, nullptr, &this->imageFinishProcessingSema) != VK_SUCCESS) {
     std::cout << "Failed to make semaphore imageFinishProcessingSema" << std::endl;
   }
   return 0;
@@ -559,16 +563,16 @@ int Core::selectPhysicalDevice() {
   for (uint32_t i = 0; i < deviceCount; i++) {
     if (checkPhysicalDeviceQueues(physicalDevices[i], queueIndices)
         && checkPhysicalDeviceExtensions(physicalDevices[i], targetDeviceExtensionsCount, &targetDeviceExtensions)) {
-      this->device.physical = physicalDevices[i];
-      std::cout << this->device.physical << std::endl;
+      this->deviceInfo.physical = physicalDevices[i];
+      std::cout << this->deviceInfo.physical << std::endl;
       break;
     }
   }
-  this->device.graphicQueueIndex = queueIndices[graphicIndex];
-  this->device.displayQueueIndex = queueIndices[displayIndex];
+  this->deviceInfo.graphicQueueIndex = queueIndices[graphicIndex];
+  this->deviceInfo.displayQueueIndex = queueIndices[displayIndex];
   delete(physicalDevices);
 
-  if (this->device.physical == VK_NULL_HANDLE) {
+  if (this->deviceInfo.physical == VK_NULL_HANDLE) {
     return -1;
   }
   return 0;

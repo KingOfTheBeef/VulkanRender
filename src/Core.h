@@ -11,7 +11,13 @@
 
 #include "WindowContext.h"
 
-struct Device {
+struct SwapchainInfo {
+    VkSwapchainKHR swapchain;
+    uint32_t imageCount;
+    VkImageView *imageViews;
+};
+
+struct DeviceInfo {
     VkPhysicalDevice physical;
     VkDevice logical;
     uint32_t graphicQueueIndex;
@@ -24,12 +30,15 @@ class Core {
 private:
     VKLIB vulkanLib;
     VkInstance instance;
-    Device device;
+    DeviceInfo deviceInfo;
     WindowContext *windowContext;
     VkSurfaceKHR surface;
-    VkSwapchainKHR swapchain;
-    VkCommandPool cmdPool;
 
+    SwapchainInfo swapchainInfo;
+
+    // Think about putting cmd buffer stuff in a struct
+
+    VkCommandPool cmdPool;
     uint32_t cmdBufferCount;
     // TODO: Need to add code to free memory allocated
     VkCommandBuffer *cmdBuffers;
