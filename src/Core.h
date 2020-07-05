@@ -11,10 +11,16 @@
 
 #include "WindowContext.h"
 
+struct ImageInfo {
+    VkImage image;
+    VkImageView imageView;
+};
+
 struct SwapchainInfo {
     VkSwapchainKHR swapchain;
+    VkSurfaceFormatKHR imageFormat;
     uint32_t imageCount;
-    VkImageView *imageViews;
+    ImageInfo *images;
 };
 
 struct DeviceInfo {
@@ -75,6 +81,7 @@ private:
     int initCommandBuffers();
     int recordCommandBuffers();
     int initSemaphores();
+    int initSwapchainImages();
 };
 
 #endif //DYNAMICLINK_CORE_H

@@ -106,6 +106,7 @@ void Core::clean() {
 
     if (this->swapchainInfo.swapchain != VK_NULL_HANDLE) {
       vkDestroySwapchainKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, nullptr);
+      delete(this->swapchainInfo.images);
     }
 
     vkDestroyDevice(this->deviceInfo.logical, nullptr);
@@ -131,7 +132,7 @@ imageAvailableSema(VK_NULL_HANDLE), imageFinishProcessingSema(VK_NULL_HANDLE) {
   this->vulkanLib = nullptr;
   this->instance = VK_NULL_HANDLE;
   this->deviceInfo = {VK_NULL_HANDLE, VK_NULL_HANDLE};
-  this->swapchainInfo = { VK_NULL_HANDLE, 0, nullptr };
+  this->swapchainInfo = {VK_NULL_HANDLE, {VK_FORMAT_UNDEFINED, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}, 0, nullptr};
 }
 
 
@@ -297,13 +298,13 @@ void Core::initSwapchain() {
   if(vkCreateSwapchainKHR(this->deviceInfo.logical, &info, nullptr, &this->swapchainInfo.swapchain) != VK_SUCCESS) {
     std::cout << "Error making swapchain" << std::endl;
   }
-  vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->swapchainInfo.imageCount, nullptr);
-  if (this->swapchainInfo.imageCount == 0) {
-    std::cout << "WARNING: Swapchain initialised with 0 images!" << std::endl;
-  }
+  this->swapchainInfo.imageFormat = surfaceFormat;
+
   if (prevSwapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(this->deviceInfo.logical, prevSwapchain, nullptr);
   }
+
+  initSwapchainImages();
 }
 
 // Function finds the extent of the images/surface we use
@@ -575,6 +576,44 @@ int Core::selectPhysicalDevice() {
   if (this->deviceInfo.physical == VK_NULL_HANDLE) {
     return -1;
   }
+  return 0;
+}
+
+int Core::initSwapchainImages() {
+  vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->swapchainInfo.imageCount, nullptr);
+  if (this->swapchainInfo.imageCount == 0) {
+    std::cout << "WARNING: Swapchain initialised with 0 images!" << std::endl;
+  }
+  VkImage *images = new VkImage[this->swapchainInfo.imageCount];
+  vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->swapchainInfo.imageCount, images);
+  this->swapchainInfo.images = new ImageInfo[this->swapchainInfo.imageCount];
+
+  for (int i = 0; i < this->swapchainInfo.imageCount; i++) {
+    // Record the handle to the image
+    this->swapchainInfo.images[i].image = images[i];
+
+    // Create the image view for that image
+    VkImageViewCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.image = this->swapchainInfo.images[i].image;
+    createInfo.format = this->swapchainInfo.imageFormat.format;
+    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    createInfo.subresourceRange.layerCount = 1;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.levelCount = 1;
+    createInfo.subresourceRange.baseMipLevel = 0;
+
+    vkCreateImageView(this->deviceInfo.logical, &createInfo, nullptr, &this->swapchainInfo.images[i].imageView);
+  }
+
+  delete(images);
   return 0;
 }
 
