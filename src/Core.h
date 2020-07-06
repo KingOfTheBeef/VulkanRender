@@ -43,10 +43,8 @@ private:
     SwapchainInfo swapchainInfo;
 
     // Think about putting cmd buffer stuff in a struct
-
     VkCommandPool cmdPool;
     uint32_t cmdBufferCount;
-    // TODO: Need to add code to free memory allocated
     VkCommandBuffer *cmdBuffers;
 
     VkSemaphore imageAvailableSema;

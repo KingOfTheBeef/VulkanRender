@@ -8,7 +8,11 @@
 #include <vulkan/vulkan.h>
 
 class Renderer {
+public:
+    int initRenderPass(VkDevice device, VkFormat format);
 
+private:
+    VkRenderPass renderPass;
 };
 
 #endif //DYNAMICLINK_RENDERER_H
