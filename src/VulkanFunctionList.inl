@@ -65,5 +65,7 @@ VK_DEVICE_FUNCTION( vkFreeCommandBuffers )
 VK_DEVICE_FUNCTION( vkDestroyCommandPool )
 VK_DEVICE_FUNCTION( vkDestroySemaphore )
 VK_DEVICE_FUNCTION( vkCreateImageView )
+VK_DEVICE_FUNCTION( vkCreateFramebuffer )
+VK_DEVICE_FUNCTION( vkCreateRenderPass )
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

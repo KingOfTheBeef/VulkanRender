@@ -43,7 +43,7 @@ int Renderer::initRenderPass(VkDevice device, VkFormat format) {
   createInfo.pDependencies = nullptr;
   createInfo.subpassCount = 1;
   createInfo.pSubpasses = subpassDescriptions;
-  
+
   if (vkCreateRenderPass(device, &createInfo, nullptr, &this->renderPass) != VK_SUCCESS) {
     std::cout << "Failed to create render pass" << std::endl;
     return -1;
@@ -51,3 +51,28 @@ int Renderer::initRenderPass(VkDevice device, VkFormat format) {
   return 0;
 }
 
+int Renderer::initFramebuffers(VkDevice device, uint32_t imageViewCount, VkImageView *imageViews) {
+  this->framebuffers = new VkFramebuffer[imageViewCount];
+
+  for (int i = 0; i < imageViewCount; i++) {
+
+    VkFramebufferCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    createInfo.flags = 0;
+    createInfo.pNext = nullptr;
+    createInfo.attachmentCount = 1;
+    createInfo.pAttachments = &imageViews[i];
+    createInfo.renderPass = this->renderPass;
+    createInfo.width = 500;
+    createInfo.height = 500;
+    createInfo.layers = 1;
+
+    vkCreateFramebuffer(device, &createInfo, nullptr, &this->framebuffers[i]);
+  }
+
+  return 0;
+}
+
+void Renderer::clean() {
+  delete(this->framebuffers);
+}

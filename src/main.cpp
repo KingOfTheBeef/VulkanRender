@@ -4,6 +4,7 @@
 
 #include "Core.h"
 #include "WindowContext.h"
+#include "FileReader.h"
 
 int main(int argc, char** argv) {
 
@@ -24,5 +25,8 @@ int main(int argc, char** argv) {
 
   delete(core);
 
+  BinaryFile file;
+  FileReader::readFileBin("../../text", &file);
+  FileReader::freeFileBin(&file);
   return 0;
 }
