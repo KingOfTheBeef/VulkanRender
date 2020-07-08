@@ -74,7 +74,7 @@ int Renderer::initFramebuffers(VkDevice device, uint32_t imageViewCount, VkImage
   return 0;
 }
 
-int Renderer::initShaderModules(VkDevice device, const char* filename, VkShaderModule *shaderModule) {
+int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderModule *shaderModule) {
   BinaryFile prog;
   if (FileReader::readFileBin(filename, &prog)) {
     std::cout << "Unable to open file " << filename << std::endl;
@@ -97,6 +97,29 @@ void Renderer::clean() {
 }
 
 int Renderer::initGraphicPipeline(VkDevice device) {
+
+  VkShaderModule vertexShader, fragmentShader;
+  initShaderModule(device, "filename", &vertexShader);
+  initShaderModule (device, "filename", &fragmentShader);
+
+  VkPipelineShaderStageCreateInfo shaderStageCreateInfo[2];
+  shaderStageCreateInfo[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  shaderStageCreateInfo[0].pNext = nullptr;
+  shaderStageCreateInfo[0].flags = 0;
+  shaderStageCreateInfo[0].module = vertexShader;
+  shaderStageCreateInfo[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+  shaderStageCreateInfo[0].pName = "main";
+  shaderStageCreateInfo[0].pSpecializationInfo = nullptr;
+
+  shaderStageCreateInfo[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  shaderStageCreateInfo[1].pNext = nullptr;
+  shaderStageCreateInfo[1].flags = 0;
+  shaderStageCreateInfo[1].module = fragmentShader;
+  shaderStageCreateInfo[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+  shaderStageCreateInfo[1].pName = "main";
+  shaderStageCreateInfo[1].pSpecializationInfo = nullptr;
+
+
   VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
   vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertexInputStateCreateInfo.pNext = nullptr;
@@ -187,6 +210,18 @@ int Renderer::initGraphicPipeline(VkDevice device) {
   colorBlendStateCreateInfo.blendConstants[2] = 0.0f;
   colorBlendStateCreateInfo.blendConstants[3] = 0.0f;
 
+  VkPipelineLayoutCreateInfo layoutCreateInfo = {};
+  layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  layoutCreateInfo.pNext = nullptr;
+  layoutCreateInfo.flags = 0;
+  layoutCreateInfo.setLayoutCount = 0;
+  layoutCreateInfo.pSetLayouts = nullptr;
+  layoutCreateInfo.pushConstantRangeCount = 0;
+  layoutCreateInfo.pPushConstantRanges = nullptr;
+
+  VkPipelineLayout layout;
+  vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr, &layout);
+
   VkGraphicsPipelineCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   createInfo.pNext = nullptr;
@@ -201,6 +236,17 @@ int Renderer::initGraphicPipeline(VkDevice device) {
   createInfo.pRasterizationState = &rasterizationStateCreateInfo;
   createInfo.pMultisampleState = &multisampleStateCreateInfo;
   createInfo.pColorBlendState = &colorBlendStateCreateInfo;
-  vkCreateGraphicsPipelines(device, nullptr, 1,  )
+  createInfo.layout = layout;
+  createInfo.pDepthStencilState = nullptr;
+  createInfo.pDynamicState = nullptr;
+  createInfo.pTessellationState = nullptr;
+  createInfo.stageCount = 2;
+  createInfo.pStages = shaderStageCreateInfo;
+  createInfo.subpass = 0;
+
+  vkCreateGraphicsPipelines(device, nullptr, 1,&createInfo, nullptr, this->pipeline);
+
+  vkDestroyShaderModule(device, vertexShader, nullptr);
+  vkDestroyShaderModule(device, fragmentShader, nullptr);
   return 0;
 }

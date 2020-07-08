@@ -21,29 +21,29 @@ VK_GLOBAL_FUNCTION(vkCreateInstance)
 
 // Instance level functions
 #ifdef VK_INSTANCE_FUNCTION
-VK_INSTANCE_FUNCTION(vkCreateDevice)
-VK_INSTANCE_FUNCTION(vkEnumeratePhysicalDevices)
-VK_INSTANCE_FUNCTION(vkDestroyInstance)
-VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceFeatures)
-VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceProperties)
-VK_INSTANCE_FUNCTION(vkGetDeviceProcAddr)
-VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceQueueFamilyProperties)
-VK_INSTANCE_FUNCTION(vkDestroySurfaceKHR)
-VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceSupportKHR)
-VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceCapabilitiesKHR)
-VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfaceFormatsKHR)
-VK_INSTANCE_FUNCTION(vkGetPhysicalDeviceSurfacePresentModesKHR)
-VK_INSTANCE_FUNCTION(vkEnumerateDeviceExtensionProperties)
+VK_INSTANCE_FUNCTION( vkCreateDevice )
+VK_INSTANCE_FUNCTION( vkEnumeratePhysicalDevices )
+VK_INSTANCE_FUNCTION( vkDestroyInstance )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceFeatures )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceProperties )
+VK_INSTANCE_FUNCTION( vkGetDeviceProcAddr )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceQueueFamilyProperties )
+VK_INSTANCE_FUNCTION( vkDestroySurfaceKHR )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceSupportKHR )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceCapabilitiesKHR )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceFormatsKHR )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfacePresentModesKHR )
+VK_INSTANCE_FUNCTION( vkEnumerateDeviceExtensionProperties )
 #ifdef VK_USE_PLATFORM_WIN32_KHR
-VK_INSTANCE_FUNCTION(vkCreateWin32SurfaceKHR)
+VK_INSTANCE_FUNCTION( vkCreateWin32SurfaceKHR )
 #endif
 #undef VK_INSTANCE_FUNCTION
 #endif
 
 #ifdef VK_DEVICE_FUNCTION
-VK_DEVICE_FUNCTION(vkDestroyDevice)
-VK_DEVICE_FUNCTION(vkGetDeviceQueue)
-VK_DEVICE_FUNCTION(vkDeviceWaitIdle)
+VK_DEVICE_FUNCTION( vkDestroyDevice )
+VK_DEVICE_FUNCTION( vkGetDeviceQueue )
+VK_DEVICE_FUNCTION( vkDeviceWaitIdle )
 
 // Swapchain Functions -> Will throw error if device is not enabled with swapchain extension
 VK_DEVICE_FUNCTION( vkCreateSwapchainKHR )
@@ -69,6 +69,8 @@ VK_DEVICE_FUNCTION( vkCreateFramebuffer )
 VK_DEVICE_FUNCTION( vkCreateRenderPass )
 VK_DEVICE_FUNCTION( vkCreateGraphicsPipelines )
 VK_DEVICE_FUNCTION( vkCreateShaderModule )
+VK_DEVICE_FUNCTION( vkCreatePipelineLayout )
+VK_DEVICE_FUNCTION( vkDestroyShaderModule )
 
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

@@ -12,10 +12,11 @@ class Renderer {
 public:
     int initRenderPass(VkDevice device, VkFormat format);
     int initFramebuffers(VkDevice device, uint32_t imageViewCount, VkImageView *imageViews);
-    int initShaderModules(VkDevice device, const char* filename, VkShaderModule *shaderModule);
-    int initGraphicPipeline();
+    int initShaderModule(VkDevice device, const char* filename, VkShaderModule *shaderModule);
+    int initGraphicPipeline(VkDevice device);
     void clean();
 private:
+    VkPipeline pipeline;
     VkRenderPass renderPass;
     VkFramebuffer *framebuffers;
 };
