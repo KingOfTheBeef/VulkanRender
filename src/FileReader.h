@@ -8,6 +8,7 @@
 struct BinaryFile {
     uint32_t length;
     char *data;
+    ~BinaryFile();
 };
 
 namespace FileReader {
