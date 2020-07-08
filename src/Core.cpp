@@ -77,24 +77,18 @@ void Core::init() {
   initDevice();
   initSwapchain();
   initSemaphores();
-  initCommandBuffers();
-  recordCommandBuffers();
+  renderer.initRenderPass(this->deviceInfo.logical, this->swapchainInfo.imageFormat.format);
+  renderer.initFramebuffers(this->deviceInfo.logical, swapchainInfo.imageCount, swapchainInfo.imageViews);
+  renderer.initGraphicPipeline(this->deviceInfo);
+  renderer.initCommandBuffers(this->deviceInfo, this->swapchainInfo.imageCount);
+  renderer.recordCommandBuffers(this->deviceInfo, this->swapchainInfo.images);
 }
 
 void Core::clean() {
   if (this->deviceInfo.logical != VK_NULL_HANDLE) {
     vkDeviceWaitIdle(this->deviceInfo.logical);
 
-    if (this->cmdBufferCount > 0) {
-      vkFreeCommandBuffers(this->deviceInfo.logical, this->cmdPool, this->cmdBufferCount, this->cmdBuffers);
-      this->cmdBufferCount = 0;
-      delete(this->cmdBuffers);
-    }
-
-    if (this->cmdPool != VK_NULL_HANDLE) {
-      vkDestroyCommandPool(this->deviceInfo.logical, this->cmdPool, nullptr);
-      this->cmdPool = VK_NULL_HANDLE;
-    }
+    this->renderer.clean();
 
     if (this->imageFinishProcessingSema != VK_NULL_HANDLE) {
       vkDestroySemaphore(this->deviceInfo.logical, this->imageFinishProcessingSema, nullptr);
@@ -403,6 +397,7 @@ int Core::initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurf
   return 0;
 }
 
+/*
 int Core::initCommandBuffers() {
   VkCommandPoolCreateInfo cmdPoolCreateInfo = {};
   cmdPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -498,6 +493,7 @@ int Core::recordCommandBuffers() {
   delete(images);
   return 0;
 }
+ */
 
 void Core::draw() {
   uint32_t imageIndex = 0;
@@ -508,7 +504,7 @@ void Core::draw() {
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.pNext = nullptr;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &this->cmdBuffers[imageIndex];
+  submitInfo.pCommandBuffers = &this->renderer.getCmdBuffers()[imageIndex]; // &this->cmdBuffers[imageIndex];
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = &this->imageFinishProcessingSema;
   submitInfo.waitSemaphoreCount = 1;
@@ -584,20 +580,18 @@ int Core::initSwapchainImages() {
   if (this->swapchainInfo.imageCount == 0) {
     std::cout << "WARNING: Swapchain initialised with 0 images!" << std::endl;
   }
-  VkImage *images = new VkImage[this->swapchainInfo.imageCount];
-  vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->swapchainInfo.imageCount, images);
-  this->swapchainInfo.images = new ImageInfo[this->swapchainInfo.imageCount];
+
+  this->swapchainInfo.images = new VkImage[this->swapchainInfo.imageCount];
+  this->swapchainInfo.imageViews = new VkImageView[this->swapchainInfo.imageCount];
+  vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->swapchainInfo.imageCount, this->swapchainInfo.images);
 
   for (int i = 0; i < this->swapchainInfo.imageCount; i++) {
-    // Record the handle to the image
-    this->swapchainInfo.images[i].image = images[i];
-
     // Create the image view for that image
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
-    createInfo.image = this->swapchainInfo.images[i].image;
+    createInfo.image = this->swapchainInfo.images[i];
     createInfo.format = this->swapchainInfo.imageFormat.format;
     createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -610,10 +604,9 @@ int Core::initSwapchainImages() {
     createInfo.subresourceRange.levelCount = 1;
     createInfo.subresourceRange.baseMipLevel = 0;
 
-    vkCreateImageView(this->deviceInfo.logical, &createInfo, nullptr, &this->swapchainInfo.images[i].imageView);
+    vkCreateImageView(this->deviceInfo.logical, &createInfo, nullptr, &this->swapchainInfo.imageViews[i]);
   }
 
-  delete(images);
   return 0;
 }
 

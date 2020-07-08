@@ -23,8 +23,10 @@ int FileReader::readFileBin(const char* fileName, BinaryFile *file) {
 
 void FileReader::freeFileBin(BinaryFile *file) {
   delete(file->data);
+  file->data = nullptr;
 }
 
 BinaryFile::~BinaryFile() {
   delete(this->data);
+  this->data = nullptr;
 }

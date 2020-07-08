@@ -99,8 +99,9 @@ void Renderer::clean() {
 int Renderer::initGraphicPipeline(DeviceInfo device) {
 
   VkShaderModule vertexShader, fragmentShader;
-  initShaderModule(device.logical, "shader/vert.spv", &vertexShader);
-  initShaderModule (device.logical, "shader/frag.spv", &fragmentShader);
+  initShaderModule(device.logical, "shaders/vert.spv", &vertexShader);
+  std::cout << "Booyah" << std::endl;
+  initShaderModule (device.logical, "shaders/frag.spv", &fragmentShader);
 
   VkPipelineShaderStageCreateInfo shaderStageCreateInfo[2];
   shaderStageCreateInfo[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -244,7 +245,13 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   createInfo.pStages = shaderStageCreateInfo;
   createInfo.subpass = 0;
 
-  vkCreateGraphicsPipelines(device.logical, 0, 1, &createInfo, nullptr, &this->pipeline);
+  std::cout << "About to make graphic pipeline" << std::endl;
+
+  if (vkCreateGraphicsPipelines(device.logical, 0, 1, &createInfo, nullptr, &this->pipeline) != VK_SUCCESS) {
+    std::cout << "Failed to do so" << std::endl;
+  }
+
+  std::cout << "And he waddled away" << std::endl;
 
   vkDestroyShaderModule(device.logical, vertexShader, nullptr);
   vkDestroyShaderModule(device.logical, fragmentShader, nullptr);
@@ -356,6 +363,7 @@ int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
       vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &postClearMemBarrier);
     }
 
+    std::cout << "Yeet then I beat " << std::endl;
     if (vkEndCommandBuffer(this->cmdBuffers[i]) != VK_SUCCESS) {
       std::cout << "Failure to record cmd buffer" << std::endl;
       return -1;

@@ -8,18 +8,26 @@
 #include "VulkanInit.h"
 #include <vulkan/vulkan.h>
 
-#include "Core.h"
+#include "Structures.h"
 
 class Renderer {
 public:
     int initRenderPass(VkDevice device, VkFormat format);
+
     int initFramebuffers(VkDevice device, uint32_t imageViewCount, VkImageView *imageViews);
-    int initShaderModule(VkDevice device, const char* filename, VkShaderModule *shaderModule);
+
+    int initShaderModule(VkDevice device, const char *filename, VkShaderModule *shaderModule);
 
     int initGraphicPipeline(DeviceInfo device);
+
     int initCommandBuffers(DeviceInfo device, uint32_t bufferCount);
+
     int recordCommandBuffers(DeviceInfo device, VkImage *images);
+
     void clean();
+
+    VkCommandBuffer *getCmdBuffers() { return this->cmdBuffers; };
+
 private:
     VkPipeline pipeline;
     VkRenderPass renderPass;

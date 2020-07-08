@@ -9,28 +9,9 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
+#include "Structures.h"
 #include "WindowContext.h"
-
-struct ImageInfo {
-    VkImage image;
-    VkImageView imageView;
-};
-
-struct SwapchainInfo {
-    VkSwapchainKHR swapchain;
-    VkSurfaceFormatKHR imageFormat;
-    uint32_t imageCount;
-    ImageInfo *images;
-};
-
-struct DeviceInfo {
-    VkPhysicalDevice physical;
-    VkDevice logical;
-    uint32_t graphicQueueIndex;
-    VkQueue graphicQueue;
-    uint32_t displayQueueIndex;
-    VkQueue displayQueue;
-};
+#include "Renderer.h"
 
 class Core {
 private:
@@ -42,10 +23,7 @@ private:
 
     SwapchainInfo swapchainInfo;
 
-    // Think about putting cmd buffer stuff in a struct
-    VkCommandPool cmdPool;
-    uint32_t cmdBufferCount;
-    VkCommandBuffer *cmdBuffers;
+    Renderer renderer;
 
     VkSemaphore imageAvailableSema;
     VkSemaphore imageFinishProcessingSema;
