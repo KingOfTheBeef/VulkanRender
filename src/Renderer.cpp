@@ -99,8 +99,8 @@ void Renderer::clean() {
 int Renderer::initGraphicPipeline(DeviceInfo device) {
 
   VkShaderModule vertexShader, fragmentShader;
-  initShaderModule(device.logical, "filename", &vertexShader);
-  initShaderModule (device.logical, "filename", &fragmentShader);
+  initShaderModule(device.logical, "shader/vert.spv", &vertexShader);
+  initShaderModule (device.logical, "shader/frag.spv", &fragmentShader);
 
   VkPipelineShaderStageCreateInfo shaderStageCreateInfo[2];
   shaderStageCreateInfo[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
