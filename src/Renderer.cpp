@@ -96,11 +96,11 @@ void Renderer::clean() {
   delete(this->framebuffers);
 }
 
-int Renderer::initGraphicPipeline(VkDevice device) {
+int Renderer::initGraphicPipeline(DeviceInfo device) {
 
   VkShaderModule vertexShader, fragmentShader;
-  initShaderModule(device, "filename", &vertexShader);
-  initShaderModule (device, "filename", &fragmentShader);
+  initShaderModule(device.logical, "filename", &vertexShader);
+  initShaderModule (device.logical, "filename", &fragmentShader);
 
   VkPipelineShaderStageCreateInfo shaderStageCreateInfo[2];
   shaderStageCreateInfo[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -220,7 +220,7 @@ int Renderer::initGraphicPipeline(VkDevice device) {
   layoutCreateInfo.pPushConstantRanges = nullptr;
 
   VkPipelineLayout layout;
-  vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr, &layout);
+  vkCreatePipelineLayout(device.logical, &layoutCreateInfo, nullptr, &layout);
 
   VkGraphicsPipelineCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -244,9 +244,122 @@ int Renderer::initGraphicPipeline(VkDevice device) {
   createInfo.pStages = shaderStageCreateInfo;
   createInfo.subpass = 0;
 
-  vkCreateGraphicsPipelines(device, nullptr, 1,&createInfo, nullptr, this->pipeline);
+  vkCreateGraphicsPipelines(device.logical, 0, 1, &createInfo, nullptr, &this->pipeline);
 
-  vkDestroyShaderModule(device, vertexShader, nullptr);
-  vkDestroyShaderModule(device, fragmentShader, nullptr);
+  vkDestroyShaderModule(device.logical, vertexShader, nullptr);
+  vkDestroyShaderModule(device.logical, fragmentShader, nullptr);
+  return 0;
+}
+
+int Renderer::initCommandBuffers(DeviceInfo device, uint32_t bufferCount) {
+  if (bufferCount < 1) {
+    std::cout << "Buffer count less than 1!" << std::endl;
+    return -1;
+  }
+
+  VkCommandPoolCreateInfo cmdPoolCreateInfo = {};
+  cmdPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  cmdPoolCreateInfo.pNext = nullptr;
+  cmdPoolCreateInfo.flags = 0;
+  cmdPoolCreateInfo.queueFamilyIndex = device.graphicQueueIndex;
+
+  if (vkCreateCommandPool(device.logical, &cmdPoolCreateInfo, nullptr, &this->cmdPool) != VK_SUCCESS) {
+    std::cout << "Failure to create command pool" << std::endl;
+  }
+
+  // vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->cmdBufferCount, nullptr);
+
+  this->cmdBufferCount = bufferCount;
+
+  this->cmdBuffers = new VkCommandBuffer[this->cmdBufferCount];
+
+  VkCommandBufferAllocateInfo allocateInfo = {};
+  allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocateInfo.pNext = nullptr;
+  allocateInfo.commandPool = this->cmdPool;
+  allocateInfo.commandBufferCount = this->cmdBufferCount;
+  allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+  if (vkAllocateCommandBuffers(device.logical, &allocateInfo, this->cmdBuffers) != VK_SUCCESS) {
+    std::cout << "Failed to allocate command buffers" << std::endl;
+    return -1;
+  }
+  return 0;
+}
+
+int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
+  VkCommandBufferBeginInfo commandBufferBeginInfo = {};
+  commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  commandBufferBeginInfo.pNext = nullptr;
+  commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+  commandBufferBeginInfo.pInheritanceInfo = nullptr;
+
+  VkClearValue clearColor;
+  clearColor.color = {{1.0f, 0.4f, 0.4f, 0.0f}};
+
+  VkImageSubresourceRange subresourceRange = {};
+  subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  subresourceRange.baseMipLevel = 0;
+  subresourceRange.levelCount = 1;
+  subresourceRange.baseArrayLayer = 0;
+  subresourceRange.layerCount = 1;
+
+  for (int i = 0; i < this->cmdBufferCount; i++) {
+    vkBeginCommandBuffer(this->cmdBuffers[i], &commandBufferBeginInfo);
+
+    if (device.graphicQueueIndex != device.displayQueueIndex) {
+      VkImageMemoryBarrier preClearMemBarrier = {};
+      preClearMemBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      preClearMemBarrier.pNext = nullptr;
+      preClearMemBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+      preClearMemBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      preClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      preClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+      preClearMemBarrier.srcQueueFamilyIndex = device.displayQueueIndex;
+      preClearMemBarrier.dstQueueFamilyIndex = device.graphicQueueIndex;
+      preClearMemBarrier.image = images[i];
+      preClearMemBarrier.subresourceRange = subresourceRange;
+
+      vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &preClearMemBarrier);
+    }
+
+    VkRenderPassBeginInfo renderPassBeginInfo = {};
+    renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassBeginInfo.pNext = nullptr;
+    renderPassBeginInfo.renderPass = this->renderPass;
+    renderPassBeginInfo.framebuffer = this->framebuffers[i];
+    renderPassBeginInfo.clearValueCount = 1;
+    renderPassBeginInfo.pClearValues = &clearColor;
+    renderPassBeginInfo.renderArea.offset = {0,0};
+    renderPassBeginInfo.renderArea.extent = {500, 500};
+
+    vkCmdBeginRenderPass(this->cmdBuffers[i], &renderPassBeginInfo,  VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(this->cmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline);
+
+    vkCmdDraw(this->cmdBuffers[i], 3, 1, 0, 0);
+
+
+    if (device.graphicQueueIndex != device.displayQueueIndex) {
+      VkImageMemoryBarrier postClearMemBarrier = {};
+      postClearMemBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      postClearMemBarrier.pNext = nullptr;
+      postClearMemBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      postClearMemBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+      postClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+      postClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+      postClearMemBarrier.srcQueueFamilyIndex = device.graphicQueueIndex;
+      postClearMemBarrier.dstQueueFamilyIndex = device.displayQueueIndex;
+      postClearMemBarrier.image = images[i];
+      postClearMemBarrier.subresourceRange = subresourceRange;
+
+      vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &postClearMemBarrier);
+    }
+
+    if (vkEndCommandBuffer(this->cmdBuffers[i]) != VK_SUCCESS) {
+      std::cout << "Failure to record cmd buffer" << std::endl;
+      return -1;
+    }
+  }
   return 0;
 }
