@@ -74,6 +74,7 @@ VK_DEVICE_FUNCTION( vkDestroyShaderModule )
 VK_DEVICE_FUNCTION( vkCmdBeginRenderPass )
 VK_DEVICE_FUNCTION( vkCmdBindPipeline )
 VK_DEVICE_FUNCTION ( vkCmdDraw )
+VK_DEVICE_FUNCTION( vkCmdEndRenderPass )
 
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

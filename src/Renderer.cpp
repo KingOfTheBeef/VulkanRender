@@ -10,7 +10,7 @@ int Renderer::initRenderPass(VkDevice device, VkFormat format) {
   VkAttachmentDescription attachmentDescriptions[1];
   attachmentDescriptions[0].format          = format;
   attachmentDescriptions[0].flags           = 0;
-  attachmentDescriptions[0].initialLayout   = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+  attachmentDescriptions[0].initialLayout   = VK_IMAGE_LAYOUT_UNDEFINED; // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
   attachmentDescriptions[0].finalLayout     = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
   attachmentDescriptions[0].loadOp          = VK_ATTACHMENT_LOAD_OP_CLEAR;
   attachmentDescriptions[0].storeOp         = VK_ATTACHMENT_STORE_OP_STORE;
@@ -94,6 +94,8 @@ int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderMo
 
 void Renderer::clean() {
   delete(this->framebuffers);
+
+
 }
 
 int Renderer::initGraphicPipeline(DeviceInfo device) {
@@ -320,8 +322,8 @@ int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
       preClearMemBarrier.pNext = nullptr;
       preClearMemBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
       preClearMemBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      preClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      preClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+      preClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+      preClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
       preClearMemBarrier.srcQueueFamilyIndex = device.displayQueueIndex;
       preClearMemBarrier.dstQueueFamilyIndex = device.graphicQueueIndex;
       preClearMemBarrier.image = images[i];
@@ -331,7 +333,7 @@ int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
     }
 
     VkRenderPassBeginInfo renderPassBeginInfo = {};
-    renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassBeginInfo.pNext = nullptr;
     renderPassBeginInfo.renderPass = this->renderPass;
     renderPassBeginInfo.framebuffer = this->framebuffers[i];
@@ -346,6 +348,8 @@ int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
 
     vkCmdDraw(this->cmdBuffers[i], 3, 1, 0, 0);
 
+    vkCmdEndRenderPass(this->cmdBuffers[i]);
+
 
     if (device.graphicQueueIndex != device.displayQueueIndex) {
       VkImageMemoryBarrier postClearMemBarrier = {};
@@ -353,7 +357,7 @@ int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
       postClearMemBarrier.pNext = nullptr;
       postClearMemBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
       postClearMemBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-      postClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+      postClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
       postClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
       postClearMemBarrier.srcQueueFamilyIndex = device.graphicQueueIndex;
       postClearMemBarrier.dstQueueFamilyIndex = device.displayQueueIndex;
