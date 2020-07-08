@@ -3,9 +3,17 @@ project(DynamicLink)
 
 set(CMAKE_CXX_STANDARD 14)
 
+add_custom_target(copy_shader_modules)
+add_custom_command(
+        TARGET copy_shader_modules POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/shaders
+        ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+
 add_executable(DynamicLink
         main.cpp
         VulkanInit.cpp
         Core.cpp WindowContext.h WindowContext.cpp Renderer.h Renderer.cpp FileReader.h FileReader.cpp Structures.h)
 
 target_link_libraries(DynamicLink ${SDL2} ${SDL2main})
+add_dependencies(DynamicLink copy_shader_modules)
