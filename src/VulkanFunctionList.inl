@@ -67,5 +67,8 @@ VK_DEVICE_FUNCTION( vkDestroySemaphore )
 VK_DEVICE_FUNCTION( vkCreateImageView )
 VK_DEVICE_FUNCTION( vkCreateFramebuffer )
 VK_DEVICE_FUNCTION( vkCreateRenderPass )
+VK_DEVICE_FUNCTION( vkCreateGraphicsPipelines )
+VK_DEVICE_FUNCTION( vkCreateShaderModule )
+
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

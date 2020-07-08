@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include "Renderer.h"
+#include "FileReader.h"
 
 int Renderer::initRenderPass(VkDevice device, VkFormat format) {
   VkAttachmentDescription attachmentDescriptions[1];
@@ -71,6 +72,24 @@ int Renderer::initFramebuffers(VkDevice device, uint32_t imageViewCount, VkImage
   }
 
   return 0;
+}
+
+int Renderer::initShaderModules(VkDevice device, const char* filename, VkShaderModule *shaderModule) {
+  BinaryFile prog;
+  if (FileReader::readFileBin(filename, &prog)) {
+    std::cout << "Unable to open file " << filename << std::endl;
+  }
+
+  VkShaderModuleCreateInfo createInfo = {};
+  createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  createInfo.pNext = nullptr;
+  createInfo.flags = 0;
+  createInfo.codeSize = prog.length;
+  createInfo.pCode = reinterpret_cast<uint32_t*>(prog.data);
+
+  VkResult result = vkCreateShaderModule(device, &createInfo, nullptr, shaderModule);
+  FileReader::freeFileBin(&prog);
+  return result != VK_SUCCESS;
 }
 
 void Renderer::clean() {
