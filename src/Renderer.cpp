@@ -53,8 +53,8 @@ int Renderer::initRenderPass(VkDevice device, VkFormat format) {
 }
 
 int Renderer::initFramebuffers(VkDevice device, uint32_t imageViewCount, VkImageView *imageViews) {
-  this->framebuffers = new VkFramebuffer[imageViewCount];
-
+  this->framebufferCount = imageViewCount;
+  this->framebuffers = new VkFramebuffer[this->framebufferCount];
   for (int i = 0; i < imageViewCount; i++) {
 
     VkFramebufferCreateInfo createInfo = {};
@@ -92,10 +92,22 @@ int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderMo
   return result != VK_SUCCESS;
 }
 
-void Renderer::clean() {
+void Renderer::clean(DeviceInfo device) {
+
+  vkFreeCommandBuffers(device.logical, this->cmdPool, this->cmdBufferCount, this->cmdBuffers);
+  delete(this->cmdBuffers);
+  this->cmdBuffers = nullptr;
+  vkDestroyCommandPool(device.logical, this->cmdPool, nullptr);
+
+  vkDestroyRenderPass(device.logical, this->renderPass, nullptr);
+  vkDestroyPipeline(device.logical, this->pipeline, nullptr);
+
+  for (int i = 0; i < this->framebufferCount; i++) {
+    if (this->framebuffers[i] != VK_NULL_HANDLE)
+      vkDestroyFramebuffer(device.logical, this->framebuffers[i], nullptr);
+  }
   delete(this->framebuffers);
-
-
+  this->framebuffers = nullptr;
 }
 
 int Renderer::initGraphicPipeline(DeviceInfo device) {
@@ -247,16 +259,13 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   createInfo.pStages = shaderStageCreateInfo;
   createInfo.subpass = 0;
 
-  std::cout << "About to make graphic pipeline" << std::endl;
-
   if (vkCreateGraphicsPipelines(device.logical, 0, 1, &createInfo, nullptr, &this->pipeline) != VK_SUCCESS) {
     std::cout << "Failed to do so" << std::endl;
   }
 
-  std::cout << "And he waddled away" << std::endl;
-
   vkDestroyShaderModule(device.logical, vertexShader, nullptr);
   vkDestroyShaderModule(device.logical, fragmentShader, nullptr);
+  vkDestroyPipelineLayout(device.logical, layout, nullptr);
   return 0;
 }
 

@@ -24,13 +24,15 @@ public:
 
     int recordCommandBuffers(DeviceInfo device, VkImage *images);
 
-    void clean();
+    void clean(DeviceInfo device);
 
     VkCommandBuffer *getCmdBuffers() { return this->cmdBuffers; };
 
 private:
     VkPipeline pipeline;
     VkRenderPass renderPass;
+
+    uint32_t framebufferCount;
     VkFramebuffer *framebuffers;
 
     VkCommandPool cmdPool;

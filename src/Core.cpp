@@ -88,7 +88,11 @@ void Core::clean() {
   if (this->deviceInfo.logical != VK_NULL_HANDLE) {
     vkDeviceWaitIdle(this->deviceInfo.logical);
 
-    this->renderer.clean();
+    this->renderer.clean(this->deviceInfo);
+
+    for (int i = 0; i < this->swapchainInfo.imageCount; i++) {
+      vkDestroyImageView(deviceInfo.logical, this->swapchainInfo.imageViews[i], nullptr);
+    }
 
     if (this->imageFinishProcessingSema != VK_NULL_HANDLE) {
       vkDestroySemaphore(this->deviceInfo.logical, this->imageFinishProcessingSema, nullptr);

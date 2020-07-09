@@ -73,8 +73,13 @@ VK_DEVICE_FUNCTION( vkCreatePipelineLayout )
 VK_DEVICE_FUNCTION( vkDestroyShaderModule )
 VK_DEVICE_FUNCTION( vkCmdBeginRenderPass )
 VK_DEVICE_FUNCTION( vkCmdBindPipeline )
-VK_DEVICE_FUNCTION ( vkCmdDraw )
+VK_DEVICE_FUNCTION( vkCmdDraw )
 VK_DEVICE_FUNCTION( vkCmdEndRenderPass )
+VK_DEVICE_FUNCTION( vkDestroyImageView )
+VK_DEVICE_FUNCTION( vkDestroyPipelineLayout )
+VK_DEVICE_FUNCTION( vkDestroyRenderPass )
+VK_DEVICE_FUNCTION( vkDestroyPipeline )
+VK_DEVICE_FUNCTION( vkDestroyFramebuffer )
 
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION
