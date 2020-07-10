@@ -515,7 +515,7 @@ void Core::draw() {
   submitInfo.pWaitSemaphores = &this->imageAvailableSema;
   submitInfo.pWaitDstStageMask = &stageFlags;
 
-  vkQueueSubmit(this->deviceInfo.displayQueue, 1, &submitInfo, VK_NULL_HANDLE);
+  vkQueueSubmit(this->deviceInfo.graphicQueue, 1, &submitInfo, VK_NULL_HANDLE);
 
   VkResult result;
   VkPresentInfoKHR presentInfo = {};
@@ -565,7 +565,6 @@ int Core::selectPhysicalDevice() {
     if (checkPhysicalDeviceQueues(physicalDevices[i], queueIndices)
         && checkPhysicalDeviceExtensions(physicalDevices[i], targetDeviceExtensionsCount, &targetDeviceExtensions)) {
       this->deviceInfo.physical = physicalDevices[i];
-      std::cout << this->deviceInfo.physical << std::endl;
       break;
     }
   }

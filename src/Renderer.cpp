@@ -34,14 +34,33 @@ int Renderer::initRenderPass(VkDevice device, VkFormat format) {
   subpassDescriptions[0].preserveAttachmentCount = 0;
   subpassDescriptions[0].pPreserveAttachments = nullptr;
 
+  VkSubpassDependency subpassDependencies[2];
+  subpassDependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+  subpassDependencies[0].dstSubpass = 0;
+  subpassDependencies[0].srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT ;
+  subpassDependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  subpassDependencies[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+  subpassDependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+  subpassDependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+  subpassDependencies[1].srcSubpass = 0;
+  subpassDependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+  subpassDependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  subpassDependencies[1].dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  subpassDependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+  subpassDependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+  subpassDependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+
+
   VkRenderPassCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
   createInfo.flags = 0;
   createInfo.pNext = nullptr;
   createInfo.attachmentCount = 1;
   createInfo.pAttachments = attachmentDescriptions;
-  createInfo.dependencyCount = 0;
-  createInfo.pDependencies = nullptr;
+  createInfo.dependencyCount = 2;
+  createInfo.pDependencies = subpassDependencies;
   createInfo.subpassCount = 1;
   createInfo.pSubpasses = subpassDescriptions;
 
@@ -114,7 +133,6 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
 
   VkShaderModule vertexShader, fragmentShader;
   initShaderModule(device.logical, "shaders/vert.spv", &vertexShader);
-  std::cout << "Booyah" << std::endl;
   initShaderModule (device.logical, "shaders/frag.spv", &fragmentShader);
 
   VkPipelineShaderStageCreateInfo shaderStageCreateInfo[2];
@@ -376,7 +394,6 @@ int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
       vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &postClearMemBarrier);
     }
 
-    std::cout << "Yeet then I beat " << std::endl;
     if (vkEndCommandBuffer(this->cmdBuffers[i]) != VK_SUCCESS) {
       std::cout << "Failure to record cmd buffer" << std::endl;
       return -1;
