@@ -54,8 +54,6 @@ private:
     int initImageUsageFlags(VkImageUsageFlags *usageFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
     int initSurfaceFormat(VkSurfaceFormatKHR *surfaceFormat);
     int initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities);
-    int initCommandBuffers();
-    int recordCommandBuffers();
     int initSemaphores();
     int initSwapchainImages();
 };

@@ -34,6 +34,7 @@ VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceCapabilitiesKHR )
 VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceFormatsKHR )
 VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfacePresentModesKHR )
 VK_INSTANCE_FUNCTION( vkEnumerateDeviceExtensionProperties )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceMemoryProperties )
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 VK_INSTANCE_FUNCTION( vkCreateWin32SurfaceKHR )
 #endif
@@ -80,6 +81,12 @@ VK_DEVICE_FUNCTION( vkDestroyPipelineLayout )
 VK_DEVICE_FUNCTION( vkDestroyRenderPass )
 VK_DEVICE_FUNCTION( vkDestroyPipeline )
 VK_DEVICE_FUNCTION( vkDestroyFramebuffer )
-
+VK_DEVICE_FUNCTION( vkCreateBuffer )
+VK_DEVICE_FUNCTION( vkGetBufferMemoryRequirements )
+VK_DEVICE_FUNCTION( vkAllocateMemory )
+VK_DEVICE_FUNCTION( vkBindBufferMemory )
+VK_DEVICE_FUNCTION( vkMapMemory )
+VK_DEVICE_FUNCTION( vkFlushMappedMemoryRanges )
+VK_DEVICE_FUNCTION( vkUnmapMemory )
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

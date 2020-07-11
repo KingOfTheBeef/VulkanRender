@@ -22,6 +22,8 @@ public:
 
     int initCommandBuffers(DeviceInfo device, uint32_t bufferCount);
 
+    int initVertexBuffer(DeviceInfo device);
+
     int recordCommandBuffers(DeviceInfo device, VkImage *images);
 
     void clean(DeviceInfo device);
@@ -38,6 +40,9 @@ private:
     VkCommandPool cmdPool;
     uint32_t cmdBufferCount;
     VkCommandBuffer *cmdBuffers;
+
+    VkBuffer vertexBuffer;
+    VkDeviceMemory  deviceMemory;
 };
 
 #endif //DYNAMICLINK_RENDERER_H

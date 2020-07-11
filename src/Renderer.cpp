@@ -152,22 +152,42 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   shaderStageCreateInfo[1].pName = "main";
   shaderStageCreateInfo[1].pSpecializationInfo = nullptr;
 
+  /* Vertex data arranged as =
+   * {x, y, z, w, r, g, b, a}
+   * i.e. 4 32bit floats for xyzw coordinates and then rgba color values, interleaved
+   * */
+
+  VkVertexInputBindingDescription vertexInputBindingDescription[1];
+  vertexInputBindingDescription[0].binding = 0;
+  vertexInputBindingDescription[0].stride = sizeof(float[8]); //Todo: hardcoding
+  vertexInputBindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+  VkVertexInputAttributeDescription vertexInputAttributeDescription[2];
+  vertexInputAttributeDescription[0].binding = 0;
+  vertexInputAttributeDescription[0].format = VK_FORMAT_R32G32B32A32_SFLOAT; // Hard coded RGBA format for vertex buffers
+  vertexInputAttributeDescription[0].location = 0;
+  vertexInputAttributeDescription[0].offset = 0;
+
+  vertexInputAttributeDescription[1].binding = 0;
+  vertexInputAttributeDescription[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+  vertexInputAttributeDescription[1].location = 1;
+  vertexInputAttributeDescription[1].offset = sizeof(float[4]); //Todo: Fix this hardcoding
 
   VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
   vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertexInputStateCreateInfo.pNext = nullptr;
   vertexInputStateCreateInfo.flags = 0;
-  vertexInputStateCreateInfo.vertexBindingDescriptionCount = 0;
-  vertexInputStateCreateInfo.pVertexBindingDescriptions = nullptr;
-  vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 0;
-  vertexInputStateCreateInfo.pVertexAttributeDescriptions = nullptr;
+  vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
+  vertexInputStateCreateInfo.pVertexBindingDescriptions = vertexInputBindingDescription;
+  vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 2;
+  vertexInputStateCreateInfo.pVertexAttributeDescriptions = vertexInputAttributeDescription;
 
   VkPipelineInputAssemblyStateCreateInfo assemblyStateCreateInfo = {};
   assemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
   assemblyStateCreateInfo.pNext = nullptr;
   assemblyStateCreateInfo.flags = 0;
   assemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
-  assemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  assemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
   VkViewport viewport = {};
   viewport.x = 0;
@@ -188,9 +208,9 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   viewportStateCreateInfo.pNext = nullptr;
   viewportStateCreateInfo.flags = 0;
   viewportStateCreateInfo.viewportCount = 1;
-  viewportStateCreateInfo.pViewports = &viewport;
+  viewportStateCreateInfo.pViewports = nullptr; // &viewport;
   viewportStateCreateInfo.scissorCount = 1;
-  viewportStateCreateInfo.pScissors = &scissorTest;
+  viewportStateCreateInfo.pScissors = nullptr; // &scissorTest;
 
   VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {};
   rasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -255,6 +275,14 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   VkPipelineLayout layout;
   vkCreatePipelineLayout(device.logical, &layoutCreateInfo, nullptr, &layout);
 
+  VkDynamicState dynamicStates[2] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+  VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
+  dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+  dynamicStateCreateInfo.pNext = nullptr;
+  dynamicStateCreateInfo.flags = 0;
+  dynamicStateCreateInfo.dynamicStateCount = 2;
+  dynamicStateCreateInfo.pDynamicStates = dynamicStates;
+
   VkGraphicsPipelineCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   createInfo.pNext = nullptr;
@@ -271,7 +299,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   createInfo.pColorBlendState = &colorBlendStateCreateInfo;
   createInfo.layout = layout;
   createInfo.pDepthStencilState = nullptr;
-  createInfo.pDynamicState = nullptr;
+  createInfo.pDynamicState = &dynamicStateCreateInfo;
   createInfo.pTessellationState = nullptr;
   createInfo.stageCount = 2;
   createInfo.pStages = shaderStageCreateInfo;
@@ -399,5 +427,74 @@ int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
       return -1;
     }
   }
+  return 0;
+}
+
+int Renderer::initVertexBuffer(DeviceInfo device) {
+
+  float vertexData[] = {
+          // Position                  // Color
+          -0.7f, -0.7f, 0.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f
+          -0.7f, 0.7f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,
+          0.7f, -0.7f, 0.0f, 1.0f,    0.0f, 0.0f, 1.0f, 0.0f,
+          0.7f, 0.7f, 0.0f, 1.0f,     0.3f, 0.3f, 0.3f, 0.0f
+  };
+
+  VkBufferCreateInfo createInfo = {};
+  createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  createInfo.pNext = nullptr;
+  createInfo.flags = 0;
+  createInfo.size = sizeof(vertexData);
+
+  createInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  createInfo.queueFamilyIndexCount = 0;       // Only used when we have concurrent sharing mode
+  createInfo.pQueueFamilyIndices = nullptr;
+
+  vkCreateBuffer(device.logical, &createInfo, nullptr, &this->vertexBuffer);
+
+
+  VkMemoryRequirements memoryRequirements;
+  VkPhysicalDeviceMemoryProperties memoryProperties;
+  vkGetBufferMemoryRequirements(device.logical, this->vertexBuffer, &memoryRequirements);
+  vkGetPhysicalDeviceMemoryProperties(device.physical, &memoryProperties);
+
+  uint32_t memeoryIndex = -1;
+  for (int i = 0; i < memoryProperties.memoryTypeCount;  i++) {
+    if (memoryRequirements.memoryTypeBits & (1 << i)
+     && memoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+      memeoryIndex = i;
+      break;
+    }
+  }
+  if (memeoryIndex == -1) {
+    std::cout << "Didn't find memory for buffer allocation" << std::endl;
+  }
+
+  VkMemoryAllocateInfo memoryAllocateInfo = {};
+  memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  memoryAllocateInfo.pNext = nullptr;
+  memoryAllocateInfo.allocationSize = sizeof(vertexData);
+  memoryAllocateInfo.memoryTypeIndex = memeoryIndex;
+
+  vkAllocateMemory(device.logical, &memoryAllocateInfo, nullptr, &this->deviceMemory);
+
+  vkBindBufferMemory(device.logical, this->vertexBuffer, this->deviceMemory, 0);
+
+  void *ptrBuffer;
+  vkMapMemory(device.logical, this->deviceMemory, 0, sizeof(vertexData), 0, &ptrBuffer);
+  memcpy(ptrBuffer, vertexData, sizeof(vertexData));
+
+
+  VkMappedMemoryRange memoryRange = {};
+  memoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+  memoryRange.pNext = nullptr;
+  memoryRange.size = sizeof(vertexData);
+  memoryRange.offset = 0;
+  memoryRange.memory = this->deviceMemory;
+
+  vkFlushMappedMemoryRanges(device.logical, 1, &memoryRange);
+  vkUnmapMemory(device.logical, this->deviceMemory);
+
   return 0;
 }
