@@ -76,12 +76,13 @@ void Core::init() {
   initSurface();
   initDevice();
   initSwapchain();
-  initSemaphores();
   renderer.initRenderPass(this->deviceInfo.logical, this->swapchainInfo.imageFormat.format);
-  renderer.initFramebuffers(this->deviceInfo.logical, swapchainInfo.imageCount, swapchainInfo.imageViews);
   renderer.initGraphicPipeline(this->deviceInfo);
-  renderer.initCommandBuffers(this->deviceInfo, this->swapchainInfo.imageCount);
-  renderer.recordCommandBuffers(this->deviceInfo, this->swapchainInfo.images);
+  renderer.initVertexBuffer(this->deviceInfo);
+  renderer.initVirtualFrames(this->deviceInfo);
+
+  // renderer.initCommandBuffers(this->deviceInfo, this->swapchainInfo.imageCount);
+  // renderer.recordCommandBuffers(this->deviceInfo, this->swapchainInfo.images);
 }
 
 void Core::clean() {
@@ -94,6 +95,7 @@ void Core::clean() {
       vkDestroyImageView(deviceInfo.logical, this->swapchainInfo.imageViews[i], nullptr);
     }
 
+    /*
     if (this->imageFinishProcessingSema != VK_NULL_HANDLE) {
       vkDestroySemaphore(this->deviceInfo.logical, this->imageFinishProcessingSema, nullptr);
     }
@@ -101,6 +103,7 @@ void Core::clean() {
     if (this->imageAvailableSema != VK_NULL_HANDLE) {
       vkDestroySemaphore(this->deviceInfo.logical, this->imageAvailableSema, nullptr);
     }
+    */
 
     if (this->swapchainInfo.swapchain != VK_NULL_HANDLE) {
       vkDestroySwapchainKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, nullptr);
@@ -125,12 +128,11 @@ void Core::clean() {
   }
 }
 
-Core::Core() : surface(VK_NULL_HANDLE),
-imageAvailableSema(VK_NULL_HANDLE), imageFinishProcessingSema(VK_NULL_HANDLE) {
+Core::Core() : surface(VK_NULL_HANDLE) {
   this->vulkanLib = nullptr;
   this->instance = VK_NULL_HANDLE;
   this->deviceInfo = {VK_NULL_HANDLE, VK_NULL_HANDLE};
-  this->swapchainInfo = {VK_NULL_HANDLE, {VK_FORMAT_UNDEFINED, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}, 0, nullptr};
+  this->swapchainInfo = {VK_NULL_HANDLE, {VK_FORMAT_UNDEFINED, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}, {0, 0}, 0, nullptr};
 }
 
 
@@ -279,7 +281,8 @@ void Core::initSwapchain() {
   info.minImageCount = getImageCount(surfaceCapabilities);
   info.imageFormat = surfaceFormat.format;
   info.imageColorSpace = surfaceFormat.colorSpace;
-  initExtent2D(&info.imageExtent, surfaceCapabilities);
+  initExtent2D(&this->swapchainInfo.extent, surfaceCapabilities);
+  info.imageExtent = this->swapchainInfo.extent;
   info.imageArrayLayers = 1;
   if (initImageUsageFlags(&info.imageUsage, surfaceCapabilities)) {
     std::cout << "Failure to get usage flags" << std::endl;
@@ -402,6 +405,10 @@ int Core::initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurf
 }
 
 void Core::draw() {
+
+  renderer.draw(this->deviceInfo, this->swapchainInfo);
+
+  /*
   uint32_t imageIndex = 0;
   vkAcquireNextImageKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, UINT64_MAX, this->imageAvailableSema, VK_NULL_HANDLE, &imageIndex);
 
@@ -435,8 +442,10 @@ void Core::draw() {
   if (result != VK_SUCCESS) {
     std::cout << "Something fishy" << std::endl;
   }
+   */
 }
 
+/*
 int Core::initSemaphores() {
   VkSemaphoreCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -450,6 +459,7 @@ int Core::initSemaphores() {
   }
   return 0;
 }
+ */
 
 // Function which sets the physical device and queue indexes
 int Core::selectPhysicalDevice() {

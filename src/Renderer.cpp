@@ -71,28 +71,6 @@ int Renderer::initRenderPass(VkDevice device, VkFormat format) {
   return 0;
 }
 
-int Renderer::initFramebuffers(VkDevice device, uint32_t imageViewCount, VkImageView *imageViews) {
-  this->framebufferCount = imageViewCount;
-  this->framebuffers = new VkFramebuffer[this->framebufferCount];
-  for (int i = 0; i < imageViewCount; i++) {
-
-    VkFramebufferCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    createInfo.flags = 0;
-    createInfo.pNext = nullptr;
-    createInfo.attachmentCount = 1;
-    createInfo.pAttachments = &imageViews[i];
-    createInfo.renderPass = this->renderPass;
-    createInfo.width = 500;
-    createInfo.height = 500;
-    createInfo.layers = 1;
-
-    vkCreateFramebuffer(device, &createInfo, nullptr, &this->framebuffers[i]);
-  }
-
-  return 0;
-}
-
 int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderModule *shaderModule) {
   BinaryFile prog;
   if (FileReader::readFileBin(filename, &prog)) {
@@ -113,20 +91,22 @@ int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderMo
 
 void Renderer::clean(DeviceInfo device) {
 
-  vkFreeCommandBuffers(device.logical, this->cmdPool, this->cmdBufferCount, this->cmdBuffers);
-  delete(this->cmdBuffers);
-  this->cmdBuffers = nullptr;
-  vkDestroyCommandPool(device.logical, this->cmdPool, nullptr);
+  for (int i = 0; i < virtualFrameCount; i++) {
+    vkFreeCommandBuffers(device.logical, this->cmdPool, 1, &this->virtualFrames[i].cmdBuffer);
+    vkDestroySemaphore(device.logical, this->virtualFrames[i].imageFinishProcessingSema, nullptr);
+    vkDestroySemaphore(device.logical, this->virtualFrames[i].imageAvailableSema, nullptr);
+    vkDestroyFence(device.logical, this->virtualFrames[i].fence, nullptr);
+    if (this->virtualFrames[i].framebuffer != VK_NULL_HANDLE) {
+      vkDestroyFramebuffer(device.logical, this->virtualFrames[i].framebuffer, nullptr);
+    }
+  }
 
+  vkDestroyBuffer(device.logical, this->vertexBuffer, nullptr);
+  vkFreeMemory(device.logical, this->deviceMemory, nullptr);
+
+  vkDestroyCommandPool(device.logical, this->cmdPool, nullptr);
   vkDestroyRenderPass(device.logical, this->renderPass, nullptr);
   vkDestroyPipeline(device.logical, this->pipeline, nullptr);
-
-  for (int i = 0; i < this->framebufferCount; i++) {
-    if (this->framebuffers[i] != VK_NULL_HANDLE)
-      vkDestroyFramebuffer(device.logical, this->framebuffers[i], nullptr);
-  }
-  delete(this->framebuffers);
-  this->framebuffers = nullptr;
 }
 
 int Renderer::initGraphicPipeline(DeviceInfo device) {
@@ -159,7 +139,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
 
   VkVertexInputBindingDescription vertexInputBindingDescription[1];
   vertexInputBindingDescription[0].binding = 0;
-  vertexInputBindingDescription[0].stride = sizeof(float[8]); //Todo: hardcoding
+  vertexInputBindingDescription[0].stride = sizeof(float) * 8; //Todo: hardcoding
   vertexInputBindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
   VkVertexInputAttributeDescription vertexInputAttributeDescription[2];
@@ -171,7 +151,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   vertexInputAttributeDescription[1].binding = 0;
   vertexInputAttributeDescription[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
   vertexInputAttributeDescription[1].location = 1;
-  vertexInputAttributeDescription[1].offset = sizeof(float[4]); //Todo: Fix this hardcoding
+  vertexInputAttributeDescription[1].offset = sizeof(float) * 4; //Todo: Fix this hardcoding
 
   VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
   vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -187,7 +167,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   assemblyStateCreateInfo.pNext = nullptr;
   assemblyStateCreateInfo.flags = 0;
   assemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
-  assemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  assemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN; // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
   VkViewport viewport = {};
   viewport.x = 0;
@@ -315,6 +295,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   return 0;
 }
 
+/*
 int Renderer::initCommandBuffers(DeviceInfo device, uint32_t bufferCount) {
   if (bufferCount < 1) {
     std::cout << "Buffer count less than 1!" << std::endl;
@@ -324,7 +305,7 @@ int Renderer::initCommandBuffers(DeviceInfo device, uint32_t bufferCount) {
   VkCommandPoolCreateInfo cmdPoolCreateInfo = {};
   cmdPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   cmdPoolCreateInfo.pNext = nullptr;
-  cmdPoolCreateInfo.flags = 0;
+  cmdPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
   cmdPoolCreateInfo.queueFamilyIndex = device.graphicQueueIndex;
 
   if (vkCreateCommandPool(device.logical, &cmdPoolCreateInfo, nullptr, &this->cmdPool) != VK_SUCCESS) {
@@ -350,7 +331,9 @@ int Renderer::initCommandBuffers(DeviceInfo device, uint32_t bufferCount) {
   }
   return 0;
 }
+*/
 
+/*
 int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
   VkCommandBufferBeginInfo commandBufferBeginInfo = {};
   commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -429,15 +412,21 @@ int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
   }
   return 0;
 }
+*/
 
 int Renderer::initVertexBuffer(DeviceInfo device) {
 
   float vertexData[] = {
           // Position                  // Color
-          -0.7f, -0.7f, 0.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f
-          -0.7f, 0.7f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,
-          0.7f, -0.7f, 0.0f, 1.0f,    0.0f, 0.0f, 1.0f, 0.0f,
-          0.7f, 0.7f, 0.0f, 1.0f,     0.3f, 0.3f, 0.3f, 0.0f
+          0.0f, 0.3f, 0.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,
+          -0.7f, 0.5f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,
+          0.0f, 0.7f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,
+          0.7f, 0.5f, 0.0f, 1.0f,     0.0f, 1.0f, 0.0f, 0.0f,
+
+          0.7f, -0.5f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f, 0.0f,
+          0.0f, -0.7f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,
+          -0.7f, -0.5f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,
+          -0.7f, 0.5f, 0.0f, 1.0f,     0.0f, 1.0f, 0.0f, 0.0f
   };
 
   VkBufferCreateInfo createInfo = {};
@@ -474,7 +463,7 @@ int Renderer::initVertexBuffer(DeviceInfo device) {
   VkMemoryAllocateInfo memoryAllocateInfo = {};
   memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   memoryAllocateInfo.pNext = nullptr;
-  memoryAllocateInfo.allocationSize = sizeof(vertexData);
+  memoryAllocateInfo.allocationSize = memoryRequirements.size;
   memoryAllocateInfo.memoryTypeIndex = memeoryIndex;
 
   vkAllocateMemory(device.logical, &memoryAllocateInfo, nullptr, &this->deviceMemory);
@@ -489,12 +478,201 @@ int Renderer::initVertexBuffer(DeviceInfo device) {
   VkMappedMemoryRange memoryRange = {};
   memoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
   memoryRange.pNext = nullptr;
-  memoryRange.size = sizeof(vertexData);
+  memoryRange.size = VK_WHOLE_SIZE;
   memoryRange.offset = 0;
   memoryRange.memory = this->deviceMemory;
 
   vkFlushMappedMemoryRanges(device.logical, 1, &memoryRange);
   vkUnmapMemory(device.logical, this->deviceMemory);
+
+  return 0;
+}
+
+int Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkExtent2D extent, VkImageView *imageView, VkImage image) {
+  if (virtualFrame->framebuffer != VK_NULL_HANDLE) {
+    vkDestroyFramebuffer(device.logical, virtualFrame->framebuffer, nullptr);
+  }
+
+  VkFramebufferCreateInfo framebufferCreateInfo = {};
+  framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+  framebufferCreateInfo.pNext = nullptr;
+  framebufferCreateInfo.flags = 0;
+  framebufferCreateInfo.renderPass = this->renderPass;
+  framebufferCreateInfo.attachmentCount = 1;
+  framebufferCreateInfo.pAttachments = imageView;
+  framebufferCreateInfo.width = extent.width;
+  framebufferCreateInfo.height = extent.height;
+  framebufferCreateInfo.layers = 1;
+
+  vkCreateFramebuffer(device.logical, &framebufferCreateInfo, nullptr, &virtualFrame->framebuffer);
+
+  VkCommandBufferBeginInfo beginInfo = {};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.pNext = nullptr;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  beginInfo.pInheritanceInfo = nullptr;
+
+  vkBeginCommandBuffer(virtualFrame->cmdBuffer, &beginInfo);
+
+  VkImageSubresourceRange subresourceRange = {};
+  subresourceRange.levelCount = 1;
+  subresourceRange.baseMipLevel = 0;
+  subresourceRange.layerCount = 1;
+  subresourceRange.baseArrayLayer = 0;
+  subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+  if (device.graphicQueueIndex != device.displayQueueIndex) {
+    VkImageMemoryBarrier memoryBarrier = {};
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    memoryBarrier.pNext = nullptr;
+    memoryBarrier.image = image;
+    memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    memoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    memoryBarrier.srcQueueFamilyIndex = device.displayQueueIndex;
+    memoryBarrier.dstQueueFamilyIndex = device.graphicQueueIndex;
+    memoryBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    memoryBarrier.newLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    memoryBarrier.subresourceRange = subresourceRange;
+
+    vkCmdPipelineBarrier(virtualFrame->cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            0, 0, nullptr, 0, nullptr, 1, &memoryBarrier);
+  }
+
+  VkClearValue clearColor = { 1.0f, 0.8f, 0.4f, 0.0f };
+  VkRenderPassBeginInfo renderPassBeginInfo = {};
+  renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderPassBeginInfo.pNext = nullptr;
+  renderPassBeginInfo.framebuffer = virtualFrame->framebuffer;
+  renderPassBeginInfo.renderPass = this->renderPass;
+  renderPassBeginInfo.renderArea.extent = extent;
+  renderPassBeginInfo.renderArea.offset = {0, 0};
+  renderPassBeginInfo.clearValueCount = 1;
+  renderPassBeginInfo.pClearValues = &clearColor;
+
+  vkCmdBeginRenderPass(virtualFrame->cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+  vkCmdBindPipeline(virtualFrame->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline);
+
+  VkViewport viewport = {};
+  viewport.height = extent.height;
+  viewport.width = extent.width;
+  viewport.x = 0;
+  viewport.y = 0;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+
+  VkRect2D rect = {};
+  rect.offset.x = 0;
+  rect.offset.y = 0;
+  rect.extent = extent;
+
+  vkCmdSetViewport(virtualFrame->cmdBuffer, 0, 1, &viewport);
+  vkCmdSetScissor(virtualFrame->cmdBuffer, 0, 1, &rect);
+
+  VkDeviceSize offset = 0;
+  vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 0, 1, &this->vertexBuffer, &offset);
+
+  vkCmdDraw(virtualFrame->cmdBuffer, 8, 1, 0, 0);
+
+  vkCmdEndRenderPass(virtualFrame->cmdBuffer);
+
+  if (device.graphicQueueIndex != device.displayQueueIndex) {
+    VkImageMemoryBarrier memoryBarrier = {};
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    memoryBarrier.pNext = nullptr;
+    memoryBarrier.image = image;
+    memoryBarrier.srcAccessMask = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    memoryBarrier.dstAccessMask = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    memoryBarrier.srcQueueFamilyIndex = device.graphicQueueIndex;
+    memoryBarrier.dstQueueFamilyIndex = device.displayQueueIndex;
+    memoryBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    memoryBarrier.newLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    memoryBarrier.subresourceRange = subresourceRange;
+
+    vkCmdPipelineBarrier(virtualFrame->cmdBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                         0, 0, nullptr, 0, nullptr, 1, &memoryBarrier);
+  }
+
+  vkEndCommandBuffer(virtualFrame->cmdBuffer);
+
+  return 0;
+}
+
+void Renderer::draw(DeviceInfo device, SwapchainInfo swapchain) {
+  static uint32_t virtualFrameIndex = 0;
+  uint32_t imageIndex = 0;
+  vkWaitForFences(device.logical, 1, &this->virtualFrames[virtualFrameIndex].fence, VK_TRUE, UINT64_MAX);
+  vkResetFences(device.logical, 1, &this->virtualFrames[virtualFrameIndex].fence);
+  vkAcquireNextImageKHR(device.logical, swapchain.swapchain, UINT64_MAX, this->virtualFrames[virtualFrameIndex].imageAvailableSema, VK_NULL_HANDLE, &imageIndex);
+
+  prepareVirtualFrame(device, &this->virtualFrames[virtualFrameIndex], swapchain.extent, &swapchain.imageViews[imageIndex], swapchain.images[imageIndex]);
+
+  VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+  VkSubmitInfo submitInfo = {};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.pNext = nullptr;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &this->virtualFrames[virtualFrameIndex].cmdBuffer; // &this->cmdBuffers[imageIndex];
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = &this->virtualFrames[virtualFrameIndex].imageFinishProcessingSema;
+  submitInfo.waitSemaphoreCount = 1;
+  submitInfo.pWaitSemaphores = &this->virtualFrames[virtualFrameIndex].imageAvailableSema;
+  submitInfo.pWaitDstStageMask = &stageFlags;
+
+  vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[virtualFrameIndex].fence);
+
+  VkResult result;
+  VkPresentInfoKHR presentInfo = {};
+  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  presentInfo.pNext = nullptr;
+  presentInfo.swapchainCount = 1;
+  presentInfo.pSwapchains = &swapchain.swapchain;
+  presentInfo.waitSemaphoreCount = 1;
+  presentInfo.pWaitSemaphores = &this->virtualFrames[virtualFrameIndex].imageFinishProcessingSema;
+  presentInfo.pImageIndices = &imageIndex;
+  presentInfo.pResults = &result;
+
+  vkQueuePresentKHR(device.displayQueue, &presentInfo);
+
+  if (result != VK_SUCCESS) {
+    std::cout << "Something fishy" << std::endl;
+  }
+}
+
+int Renderer::initVirtualFrames(DeviceInfo device) {
+  VkCommandPoolCreateInfo commandPoolCreateInfo = {};
+  commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  commandPoolCreateInfo.pNext = nullptr;
+  commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+  commandPoolCreateInfo.queueFamilyIndex = device.graphicQueueIndex;
+  vkCreateCommandPool(device.logical, &commandPoolCreateInfo, nullptr, &this->cmdPool);
+
+  VkCommandBuffer cmdBuffers[virtualFrameCount];
+  VkCommandBufferAllocateInfo allocateInfo = {};
+  allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocateInfo.pNext = nullptr;
+  allocateInfo.commandBufferCount = virtualFrameCount;
+  allocateInfo.commandPool = this->cmdPool;
+  allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  vkAllocateCommandBuffers(device.logical, &allocateInfo, cmdBuffers);
+
+  VkSemaphoreCreateInfo semaphoreCreateInfo = {};
+  semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  semaphoreCreateInfo.pNext = nullptr;
+  semaphoreCreateInfo.flags = 0;
+
+  VkFenceCreateInfo fenceCreateInfo = {};
+  fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  fenceCreateInfo.pNext = nullptr;
+  fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+  for (int i = 0; i < virtualFrameCount; i++) {
+    this->virtualFrames[i].cmdBuffer = cmdBuffers[i];
+    this->virtualFrames[i].framebuffer = VK_NULL_HANDLE;
+    vkCreateSemaphore(device.logical, &semaphoreCreateInfo, nullptr, &this->virtualFrames[i].imageFinishProcessingSema);
+    vkCreateSemaphore(device.logical, &semaphoreCreateInfo, nullptr, &this->virtualFrames[i].imageAvailableSema);
+    vkCreateFence(device.logical, &fenceCreateInfo, nullptr, &this->virtualFrames[i].fence);
+  }
 
   return 0;
 }

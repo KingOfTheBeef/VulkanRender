@@ -17,9 +17,12 @@ int main(int argc, char** argv) {
   // WindowContext *context = new WindowContext();
   // context->initialise("Vulkan Dynamic Link", 500, 500);
 
-  core.draw();
-  std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+  for (int i = 0; i < 500; i++) {
+    core.draw();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 
   // context->clean();
+  core.clean();
   return 0;
 }

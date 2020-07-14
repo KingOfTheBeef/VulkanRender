@@ -11,6 +11,7 @@
 struct SwapchainInfo {
     VkSwapchainKHR swapchain;
     VkSurfaceFormatKHR imageFormat;
+    VkExtent2D extent;
     uint32_t imageCount;
     VkImage *images;
     VkImageView *imageViews;
