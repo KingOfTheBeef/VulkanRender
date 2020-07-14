@@ -462,10 +462,8 @@ int Renderer::draw(DeviceInfo device, SwapchainInfo swapchain) {
     case VK_SUCCESS:
     case VK_SUBOPTIMAL_KHR:
       break;
-    case VK_ERROR_OUT_OF_DATE_KHR:
-      return 1;
     default:
-      return 2;
+      return result;
   }
 
   prepareVirtualFrame(device, &this->virtualFrames[virtualFrameIndex], swapchain.extent, &swapchain.imageViews[imageIndex], swapchain.images[imageIndex]);
@@ -500,10 +498,8 @@ int Renderer::draw(DeviceInfo device, SwapchainInfo swapchain) {
     case VK_SUCCESS:
     case VK_SUBOPTIMAL_KHR:
       break;
-    case VK_ERROR_OUT_OF_DATE_KHR:
-      return 1;
     default:
-      return 2;
+      return result;
   }
   return 0;
 }

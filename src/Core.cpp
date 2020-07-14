@@ -391,7 +391,7 @@ int Core::initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurf
 
 void Core::draw() {
   switch (renderer.draw(this->deviceInfo, this->swapchainInfo)) {
-    case 1:
+    case VK_ERROR_OUT_OF_DATE_KHR:
       windowResize();
       break;
     default:
