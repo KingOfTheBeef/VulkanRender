@@ -13,6 +13,8 @@ class Renderer {
 public:
     int initRenderer(DeviceInfo device, VkFormat format);
 
+    int updateVertexBuffer(DeviceInfo device, const void* data, size_t size);
+
     int draw(DeviceInfo device, SwapchainInfo swapchain);
 
     void clean(DeviceInfo device);

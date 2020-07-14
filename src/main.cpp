@@ -5,6 +5,7 @@
 #include "Core.h"
 #include "WindowContext.h"
 #include "FileReader.h"
+#include "tempVertexData.h"
 
 int main(int argc, char** argv) {
 
@@ -17,9 +18,20 @@ int main(int argc, char** argv) {
   // WindowContext *context = new WindowContext();
   // context->initialise("Vulkan Dynamic Link", 500, 500);
 
-  for (int i = 0; i < 500; i++) {
+  bool running = true;
+  while(running) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+      switch(event.type) {
+        case SDL_KEYDOWN:
+          core.update();
+          break;
+        case SDL_QUIT:
+          running = false;
+          break;
+        default:
+          break;
+      }
     }
     core.draw();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));

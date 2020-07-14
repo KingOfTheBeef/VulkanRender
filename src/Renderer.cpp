@@ -323,23 +323,10 @@ int Renderer::initVertexBuffer(DeviceInfo device) {
 
   vkBindBufferMemory(device.logical, this->vertexBuffer, this->deviceMemory, 0);
 
-  void *ptrBuffer;
-  vkMapMemory(device.logical, this->deviceMemory, 0, Data::vertexDataSize, 0, &ptrBuffer);
-  memcpy(ptrBuffer, Data::vertexData, Data::vertexDataSize);
-
-
-  VkMappedMemoryRange memoryRange = {};
-  memoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-  memoryRange.pNext = nullptr;
-  memoryRange.size = VK_WHOLE_SIZE;
-  memoryRange.offset = 0;
-  memoryRange.memory = this->deviceMemory;
-
-  vkFlushMappedMemoryRanges(device.logical, 1, &memoryRange);
-  vkUnmapMemory(device.logical, this->deviceMemory);
-
-  return 0;
+  return updateVertexBuffer(device, Data::vertexData, Data::vertexDataSize);
 }
+
+
 
 int Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkExtent2D extent, VkImageView *imageView, VkImage image) {
   if (virtualFrame->framebuffer != VK_NULL_HANDLE) {
@@ -551,5 +538,22 @@ int Renderer::initRenderer(DeviceInfo device, VkFormat format) {
   this->initVertexBuffer(device);
   this->initCommandPool(device);
   this->initVirtualFrames(device);
+  return 0;
+}
+
+int Renderer::updateVertexBuffer(DeviceInfo device, const void* data, size_t size) {
+  void *ptrBuffer;
+  vkMapMemory(device.logical, this->deviceMemory, 0, Data::vertexDataSize, 0, &ptrBuffer);
+  memcpy(ptrBuffer, data, size);
+
+  VkMappedMemoryRange memoryRange = {};
+  memoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+  memoryRange.pNext = nullptr;
+  memoryRange.size = VK_WHOLE_SIZE;
+  memoryRange.offset = 0;
+  memoryRange.memory = this->deviceMemory;
+  vkFlushMappedMemoryRanges(device.logical, 1, &memoryRange);
+
+  vkUnmapMemory(device.logical, this->deviceMemory);
   return 0;
 }

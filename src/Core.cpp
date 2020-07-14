@@ -9,6 +9,7 @@
  */
 #include <iostream>
 #include "Core.h"
+#include "tempVertexData.h"
 
 const uint8_t layerCount = 2;
 const char *layers[] = {"VK_LAYER_KHRONOS_validation", "VK_LAYER_LUNARG_api_dump"};
@@ -530,6 +531,13 @@ void Core::windowResize() {
     this->swapchainInfo.imageCount = 0;
   }
   initSwapchain();
+}
+
+void Core::update() {
+  for (int i = 0; i < 8; i++) {
+    Data::altVertexData[8 * i] += 0.1f;
+  }
+  renderer.updateVertexBuffer(this->deviceInfo, Data::altVertexData, Data::vertexDataSize);
 }
 
 #undef graphicIndex

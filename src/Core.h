@@ -34,7 +34,7 @@ public:
     void      draw();
     void      clean();
     void      windowResize();
-    // void      update();
+    void      update();
 
 
 private:

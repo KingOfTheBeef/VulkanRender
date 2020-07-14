@@ -21,6 +21,19 @@ namespace Data {
             -0.7f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f
     };
 
+    static float altVertexData[] = {
+            // Position                  // Color
+            0.0f, -0.3f, 0.0f, 1.0f, 1.0f, 0.6f, 0.0f, 0.0f,
+            -0.7f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, -0.7f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+            0.7f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+
+            0.7f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.7f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+            -0.7f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+            -0.7f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f
+    };
+
     static size_t vertexDataSize = sizeof(vertexData);
     static VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
     static uint32_t vertexCount = 8;
