@@ -5,6 +5,7 @@
 #include <iostream>
 #include "Renderer.h"
 #include "FileReader.h"
+#include "tempVertexData.h"
 
 int Renderer::initRenderPass(VkDevice device, VkFormat format) {
   VkAttachmentDescription attachmentDescriptions[1];
@@ -51,8 +52,6 @@ int Renderer::initRenderPass(VkDevice device, VkFormat format) {
   subpassDependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
   subpassDependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
-
-
   VkRenderPassCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
   createInfo.flags = 0;
@@ -91,19 +90,18 @@ int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderMo
 
 void Renderer::clean(DeviceInfo device) {
 
-  for (int i = 0; i < virtualFrameCount; i++) {
-    vkFreeCommandBuffers(device.logical, this->cmdPool, 1, &this->virtualFrames[i].cmdBuffer);
-    vkDestroySemaphore(device.logical, this->virtualFrames[i].imageFinishProcessingSema, nullptr);
-    vkDestroySemaphore(device.logical, this->virtualFrames[i].imageAvailableSema, nullptr);
-    vkDestroyFence(device.logical, this->virtualFrames[i].fence, nullptr);
-    if (this->virtualFrames[i].framebuffer != VK_NULL_HANDLE) {
-      vkDestroyFramebuffer(device.logical, this->virtualFrames[i].framebuffer, nullptr);
+  for (auto & virtualFrame : this->virtualFrames) {
+    vkFreeCommandBuffers(device.logical, this->cmdPool, 1, &virtualFrame.cmdBuffer);
+    vkDestroySemaphore(device.logical, virtualFrame.imageFinishProcessingSema, nullptr);
+    vkDestroySemaphore(device.logical, virtualFrame.imageAvailableSema, nullptr);
+    vkDestroyFence(device.logical, virtualFrame.fence, nullptr);
+    if (virtualFrame.framebuffer != VK_NULL_HANDLE) {
+      vkDestroyFramebuffer(device.logical, virtualFrame.framebuffer, nullptr);
     }
   }
 
   vkDestroyBuffer(device.logical, this->vertexBuffer, nullptr);
   vkFreeMemory(device.logical, this->deviceMemory, nullptr);
-
   vkDestroyCommandPool(device.logical, this->cmdPool, nullptr);
   vkDestroyRenderPass(device.logical, this->renderPass, nullptr);
   vkDestroyPipeline(device.logical, this->pipeline, nullptr);
@@ -139,19 +137,21 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
 
   VkVertexInputBindingDescription vertexInputBindingDescription[1];
   vertexInputBindingDescription[0].binding = 0;
-  vertexInputBindingDescription[0].stride = sizeof(float) * 8; //Todo: hardcoding
+  vertexInputBindingDescription[0].stride = Data::stride;// sizeof(float) * 8; //Todo: hardcoding
   vertexInputBindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
   VkVertexInputAttributeDescription vertexInputAttributeDescription[2];
+  // Position inputs
   vertexInputAttributeDescription[0].binding = 0;
   vertexInputAttributeDescription[0].format = VK_FORMAT_R32G32B32A32_SFLOAT; // Hard coded RGBA format for vertex buffers
   vertexInputAttributeDescription[0].location = 0;
-  vertexInputAttributeDescription[0].offset = 0;
+  vertexInputAttributeDescription[0].offset = Data::positionOffset;
 
+  // Color inputs
   vertexInputAttributeDescription[1].binding = 0;
   vertexInputAttributeDescription[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
   vertexInputAttributeDescription[1].location = 1;
-  vertexInputAttributeDescription[1].offset = sizeof(float) * 4; //Todo: Fix this hardcoding
+  vertexInputAttributeDescription[1].offset = Data::colorOffset; // sizeof(float) * 4; //Todo: Fix this hardcoding
 
   VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
   vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -167,7 +167,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   assemblyStateCreateInfo.pNext = nullptr;
   assemblyStateCreateInfo.flags = 0;
   assemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
-  assemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN; // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  assemblyStateCreateInfo.topology = Data::topology; // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
   VkViewport viewport = {};
   viewport.x = 0;
@@ -295,145 +295,12 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   return 0;
 }
 
-/*
-int Renderer::initCommandBuffers(DeviceInfo device, uint32_t bufferCount) {
-  if (bufferCount < 1) {
-    std::cout << "Buffer count less than 1!" << std::endl;
-    return -1;
-  }
-
-  VkCommandPoolCreateInfo cmdPoolCreateInfo = {};
-  cmdPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  cmdPoolCreateInfo.pNext = nullptr;
-  cmdPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-  cmdPoolCreateInfo.queueFamilyIndex = device.graphicQueueIndex;
-
-  if (vkCreateCommandPool(device.logical, &cmdPoolCreateInfo, nullptr, &this->cmdPool) != VK_SUCCESS) {
-    std::cout << "Failure to create command pool" << std::endl;
-  }
-
-  // vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->cmdBufferCount, nullptr);
-
-  this->cmdBufferCount = bufferCount;
-
-  this->cmdBuffers = new VkCommandBuffer[this->cmdBufferCount];
-
-  VkCommandBufferAllocateInfo allocateInfo = {};
-  allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocateInfo.pNext = nullptr;
-  allocateInfo.commandPool = this->cmdPool;
-  allocateInfo.commandBufferCount = this->cmdBufferCount;
-  allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-
-  if (vkAllocateCommandBuffers(device.logical, &allocateInfo, this->cmdBuffers) != VK_SUCCESS) {
-    std::cout << "Failed to allocate command buffers" << std::endl;
-    return -1;
-  }
-  return 0;
-}
-*/
-
-/*
-int Renderer::recordCommandBuffers(DeviceInfo device, VkImage *images) {
-  VkCommandBufferBeginInfo commandBufferBeginInfo = {};
-  commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  commandBufferBeginInfo.pNext = nullptr;
-  commandBufferBeginInfo.flags = 0; //VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-  commandBufferBeginInfo.pInheritanceInfo = nullptr;
-
-  VkClearValue clearColor;
-  clearColor.color = {{1.0f, 0.4f, 0.4f, 0.0f}};
-
-  VkImageSubresourceRange subresourceRange = {};
-  subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  subresourceRange.baseMipLevel = 0;
-  subresourceRange.levelCount = 1;
-  subresourceRange.baseArrayLayer = 0;
-  subresourceRange.layerCount = 1;
-
-  for (int i = 0; i < this->cmdBufferCount; i++) {
-    vkBeginCommandBuffer(this->cmdBuffers[i], &commandBufferBeginInfo);
-
-    if (device.graphicQueueIndex != device.displayQueueIndex) {
-      VkImageMemoryBarrier preClearMemBarrier = {};
-      preClearMemBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      preClearMemBarrier.pNext = nullptr;
-      preClearMemBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-      preClearMemBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      preClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-      preClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-      preClearMemBarrier.srcQueueFamilyIndex = device.displayQueueIndex;
-      preClearMemBarrier.dstQueueFamilyIndex = device.graphicQueueIndex;
-      preClearMemBarrier.image = images[i];
-      preClearMemBarrier.subresourceRange = subresourceRange;
-
-      vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &preClearMemBarrier);
-    }
-
-    VkRenderPassBeginInfo renderPassBeginInfo = {};
-    renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassBeginInfo.pNext = nullptr;
-    renderPassBeginInfo.renderPass = this->renderPass;
-    renderPassBeginInfo.framebuffer = this->framebuffers[i];
-    renderPassBeginInfo.clearValueCount = 1;
-    renderPassBeginInfo.pClearValues = &clearColor;
-    renderPassBeginInfo.renderArea.offset = {0,0};
-    renderPassBeginInfo.renderArea.extent = {500, 500};
-
-    vkCmdBeginRenderPass(this->cmdBuffers[i], &renderPassBeginInfo,  VK_SUBPASS_CONTENTS_INLINE);
-
-    vkCmdBindPipeline(this->cmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline);
-
-    vkCmdDraw(this->cmdBuffers[i], 3, 1, 0, 0);
-
-    vkCmdEndRenderPass(this->cmdBuffers[i]);
-
-
-    if (device.graphicQueueIndex != device.displayQueueIndex) {
-      VkImageMemoryBarrier postClearMemBarrier = {};
-      postClearMemBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      postClearMemBarrier.pNext = nullptr;
-      postClearMemBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      postClearMemBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-      postClearMemBarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-      postClearMemBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-      postClearMemBarrier.srcQueueFamilyIndex = device.graphicQueueIndex;
-      postClearMemBarrier.dstQueueFamilyIndex = device.displayQueueIndex;
-      postClearMemBarrier.image = images[i];
-      postClearMemBarrier.subresourceRange = subresourceRange;
-
-      vkCmdPipelineBarrier(this->cmdBuffers[i], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &postClearMemBarrier);
-    }
-
-    if (vkEndCommandBuffer(this->cmdBuffers[i]) != VK_SUCCESS) {
-      std::cout << "Failure to record cmd buffer" << std::endl;
-      return -1;
-    }
-  }
-  return 0;
-}
-*/
-
 int Renderer::initVertexBuffer(DeviceInfo device) {
-
-  float vertexData[] = {
-          // Position                  // Color
-          0.0f, 0.3f, 0.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,
-          -0.7f, 0.5f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,
-          0.0f, 0.7f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,
-          0.7f, 0.5f, 0.0f, 1.0f,     0.0f, 1.0f, 0.0f, 0.0f,
-
-          0.7f, -0.5f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f, 0.0f,
-          0.0f, -0.7f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,
-          -0.7f, -0.5f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,
-          -0.7f, 0.5f, 0.0f, 1.0f,     0.0f, 1.0f, 0.0f, 0.0f
-  };
-
   VkBufferCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   createInfo.pNext = nullptr;
   createInfo.flags = 0;
-  createInfo.size = sizeof(vertexData);
+  createInfo.size = Data::vertexDataSize;
 
   createInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
   createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -471,8 +338,8 @@ int Renderer::initVertexBuffer(DeviceInfo device) {
   vkBindBufferMemory(device.logical, this->vertexBuffer, this->deviceMemory, 0);
 
   void *ptrBuffer;
-  vkMapMemory(device.logical, this->deviceMemory, 0, sizeof(vertexData), 0, &ptrBuffer);
-  memcpy(ptrBuffer, vertexData, sizeof(vertexData));
+  vkMapMemory(device.logical, this->deviceMemory, 0, Data::vertexDataSize, 0, &ptrBuffer);
+  memcpy(ptrBuffer, Data::vertexData, Data::vertexDataSize);
 
 
   VkMappedMemoryRange memoryRange = {};
@@ -572,7 +439,7 @@ int Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame,
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 0, 1, &this->vertexBuffer, &offset);
 
-  vkCmdDraw(virtualFrame->cmdBuffer, 8, 1, 0, 0);
+  vkCmdDraw(virtualFrame->cmdBuffer, Data::vertexCount, 1, 0, 0);
 
   vkCmdEndRenderPass(virtualFrame->cmdBuffer);
 
