@@ -33,6 +33,8 @@ public:
     void      init();
     void      draw();
     void      clean();
+    void      windowResize();
+    // void      update();
 
 
 private:

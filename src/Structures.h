@@ -8,6 +8,14 @@
 #define NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
+struct VirtualFrame {
+    VkCommandBuffer cmdBuffer;
+    VkSemaphore imageAvailableSema;
+    VkSemaphore imageFinishProcessingSema;
+    VkFramebuffer framebuffer;
+    VkFence fence;
+};
+
 struct SwapchainInfo {
     VkSwapchainKHR swapchain;
     VkSurfaceFormatKHR imageFormat;

@@ -169,20 +169,6 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   assemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
   assemblyStateCreateInfo.topology = Data::topology; // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-  VkViewport viewport = {};
-  viewport.x = 0;
-  viewport.y = 0;
-  viewport.width = 300;
-  viewport.height = 300;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-
-  VkRect2D scissorTest = {};
-  scissorTest.offset.x = 0;
-  scissorTest.offset.y = 0;
-  scissorTest.extent.height = 300;
-  scissorTest.extent.width = 300;
-
   VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
   viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
   viewportStateCreateInfo.pNext = nullptr;
@@ -465,12 +451,22 @@ int Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame,
   return 0;
 }
 
-void Renderer::draw(DeviceInfo device, SwapchainInfo swapchain) {
+int Renderer::draw(DeviceInfo device, SwapchainInfo swapchain) {
   static uint32_t virtualFrameIndex = 0;
+  virtualFrameIndex = (virtualFrameIndex + 1) % this->virtualFrameCount;
   uint32_t imageIndex = 0;
   vkWaitForFences(device.logical, 1, &this->virtualFrames[virtualFrameIndex].fence, VK_TRUE, UINT64_MAX);
   vkResetFences(device.logical, 1, &this->virtualFrames[virtualFrameIndex].fence);
-  vkAcquireNextImageKHR(device.logical, swapchain.swapchain, UINT64_MAX, this->virtualFrames[virtualFrameIndex].imageAvailableSema, VK_NULL_HANDLE, &imageIndex);
+  VkResult result = vkAcquireNextImageKHR(device.logical, swapchain.swapchain, UINT64_MAX, this->virtualFrames[virtualFrameIndex].imageAvailableSema, VK_NULL_HANDLE, &imageIndex);
+  switch (result) {
+    case VK_SUCCESS:
+    case VK_SUBOPTIMAL_KHR:
+      break;
+    case VK_ERROR_OUT_OF_DATE_KHR:
+      return 1;
+    default:
+      return 2;
+  }
 
   prepareVirtualFrame(device, &this->virtualFrames[virtualFrameIndex], swapchain.extent, &swapchain.imageViews[imageIndex], swapchain.images[imageIndex]);
 
@@ -488,7 +484,6 @@ void Renderer::draw(DeviceInfo device, SwapchainInfo swapchain) {
 
   vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[virtualFrameIndex].fence);
 
-  VkResult result;
   VkPresentInfoKHR presentInfo = {};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
   presentInfo.pNext = nullptr;
@@ -497,23 +492,23 @@ void Renderer::draw(DeviceInfo device, SwapchainInfo swapchain) {
   presentInfo.waitSemaphoreCount = 1;
   presentInfo.pWaitSemaphores = &this->virtualFrames[virtualFrameIndex].imageFinishProcessingSema;
   presentInfo.pImageIndices = &imageIndex;
-  presentInfo.pResults = &result;
+  presentInfo.pResults = nullptr;
 
-  vkQueuePresentKHR(device.displayQueue, &presentInfo);
+  result = vkQueuePresentKHR(device.displayQueue, &presentInfo);
 
-  if (result != VK_SUCCESS) {
-    std::cout << "Something fishy" << std::endl;
+  switch (result) {
+    case VK_SUCCESS:
+    case VK_SUBOPTIMAL_KHR:
+      break;
+    case VK_ERROR_OUT_OF_DATE_KHR:
+      return 1;
+    default:
+      return 2;
   }
+  return 0;
 }
 
 int Renderer::initVirtualFrames(DeviceInfo device) {
-  VkCommandPoolCreateInfo commandPoolCreateInfo = {};
-  commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  commandPoolCreateInfo.pNext = nullptr;
-  commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-  commandPoolCreateInfo.queueFamilyIndex = device.graphicQueueIndex;
-  vkCreateCommandPool(device.logical, &commandPoolCreateInfo, nullptr, &this->cmdPool);
-
   VkCommandBuffer cmdBuffers[virtualFrameCount];
   VkCommandBufferAllocateInfo allocateInfo = {};
   allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -541,5 +536,24 @@ int Renderer::initVirtualFrames(DeviceInfo device) {
     vkCreateFence(device.logical, &fenceCreateInfo, nullptr, &this->virtualFrames[i].fence);
   }
 
+  return 0;
+}
+
+int Renderer::initCommandPool(DeviceInfo device) {
+  VkCommandPoolCreateInfo commandPoolCreateInfo = {};
+  commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  commandPoolCreateInfo.pNext = nullptr;
+  commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+  commandPoolCreateInfo.queueFamilyIndex = device.graphicQueueIndex;
+  vkCreateCommandPool(device.logical, &commandPoolCreateInfo, nullptr, &this->cmdPool);
+  return 0;
+}
+
+int Renderer::initRenderer(DeviceInfo device, VkFormat format) {
+  this->initRenderPass(device.logical, format);
+  this->initGraphicPipeline(device);
+  this->initVertexBuffer(device);
+  this->initCommandPool(device);
+  this->initVirtualFrames(device);
   return 0;
 }

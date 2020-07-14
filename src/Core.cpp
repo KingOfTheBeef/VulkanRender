@@ -75,14 +75,10 @@ void Core::init() {
   initWindowContext();
   initSurface();
   initDevice();
-  initSwapchain();
-  renderer.initRenderPass(this->deviceInfo.logical, this->swapchainInfo.imageFormat.format);
-  renderer.initGraphicPipeline(this->deviceInfo);
-  renderer.initVertexBuffer(this->deviceInfo);
-  renderer.initVirtualFrames(this->deviceInfo);
 
-  // renderer.initCommandBuffers(this->deviceInfo, this->swapchainInfo.imageCount);
-  // renderer.recordCommandBuffers(this->deviceInfo, this->swapchainInfo.images);
+
+  initSwapchain();
+  renderer.initRenderer(this->deviceInfo, this->swapchainInfo.imageFormat.format);
 }
 
 void Core::clean() {
@@ -94,17 +90,6 @@ void Core::clean() {
     for (int i = 0; i < this->swapchainInfo.imageCount; i++) {
       vkDestroyImageView(deviceInfo.logical, this->swapchainInfo.imageViews[i], nullptr);
     }
-
-    /*
-    if (this->imageFinishProcessingSema != VK_NULL_HANDLE) {
-      vkDestroySemaphore(this->deviceInfo.logical, this->imageFinishProcessingSema, nullptr);
-    }
-
-    if (this->imageAvailableSema != VK_NULL_HANDLE) {
-      vkDestroySemaphore(this->deviceInfo.logical, this->imageAvailableSema, nullptr);
-    }
-    */
-
     if (this->swapchainInfo.swapchain != VK_NULL_HANDLE) {
       vkDestroySwapchainKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, nullptr);
       delete(this->swapchainInfo.images);
@@ -405,8 +390,13 @@ int Core::initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurf
 }
 
 void Core::draw() {
-
-  renderer.draw(this->deviceInfo, this->swapchainInfo);
+  switch (renderer.draw(this->deviceInfo, this->swapchainInfo)) {
+    case 1:
+      windowResize();
+      break;
+    default:
+      break;
+  }
 
   /*
   uint32_t imageIndex = 0;
@@ -523,6 +513,23 @@ int Core::initSwapchainImages() {
   }
 
   return 0;
+}
+
+void Core::windowResize() {
+  vkDeviceWaitIdle(this->deviceInfo.logical);
+  if (this->swapchainInfo.swapchain != VK_NULL_HANDLE) {
+    for (int i = 0; i < this->swapchainInfo.imageCount; i++) {
+      vkDestroyImageView(deviceInfo.logical, this->swapchainInfo.imageViews[i], nullptr);
+    }
+  }
+
+  if (this->swapchainInfo.swapchain != VK_NULL_HANDLE) {
+    vkDestroySwapchainKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, nullptr);
+    delete(this->swapchainInfo.images);
+    this->swapchainInfo.swapchain = VK_NULL_HANDLE;
+    this->swapchainInfo.imageCount = 0;
+  }
+  initSwapchain();
 }
 
 #undef graphicIndex
