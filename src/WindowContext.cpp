@@ -31,7 +31,7 @@ void WindowContext::clean() {
   SDL_Quit();
 }
 
-void WindowContext::idleUntilNotMinimised(){
+void WindowContext::idleWhileMinimised(){
   SDL_Event event;
   while(SDL_PollEvent(&event) || this->isMinimised()){
   }

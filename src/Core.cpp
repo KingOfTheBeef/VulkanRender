@@ -517,9 +517,9 @@ int Core::initSwapchainImages() {
 }
 
 void Core::windowResize() {
-  this->windowContext->idleUntilNotMinimised();
+  this->windowContext->idleWhileMinimised();
   vkDeviceWaitIdle(this->deviceInfo.logical);
-  
+
   if (this->swapchainInfo.swapchain != VK_NULL_HANDLE) {
     for (int i = 0; i < this->swapchainInfo.imageCount; i++) {
       vkDestroyImageView(deviceInfo.logical, this->swapchainInfo.imageViews[i], nullptr);
