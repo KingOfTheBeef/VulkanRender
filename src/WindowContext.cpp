@@ -31,6 +31,7 @@ void WindowContext::clean() {
   SDL_Quit();
 }
 
+// Would be nice to implement this without busy waiting
 void WindowContext::idleWhileMinimised(){
   SDL_Event event;
   while(SDL_PollEvent(&event) || this->isMinimised()){

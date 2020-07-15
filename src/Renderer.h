@@ -26,10 +26,15 @@ private:
     static const uint32_t   virtualFrameCount = 3;
     VirtualFrame            virtualFrames[virtualFrameCount];
     VkBuffer                vertexBuffer;
-    VkDeviceMemory          deviceMemory;
+    VkDeviceMemory          hostVisibleMemory;
+    VkDeviceMemory          deviceLocalMemory;
 
 private:
     int initRenderPass(VkDevice device, VkFormat format);
+
+    int allocateDeviceMemory(DeviceInfo device, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
+
+    int initBuffer(DeviceInfo device, VkBufferUsageFlags bufferUsageFlags, size_t size, VkBuffer *buffer);
 
     int initShaderModule(VkDevice device, const char *filename, VkShaderModule *shaderModule);
 

@@ -101,7 +101,7 @@ void Renderer::clean(DeviceInfo device) {
   }
 
   vkDestroyBuffer(device.logical, this->vertexBuffer, nullptr);
-  vkFreeMemory(device.logical, this->deviceMemory, nullptr);
+  vkFreeMemory(device.logical, this->hostVisibleMemory, nullptr);
   vkDestroyCommandPool(device.logical, this->cmdPool, nullptr);
   vkDestroyRenderPass(device.logical, this->renderPass, nullptr);
   vkDestroyPipeline(device.logical, this->pipeline, nullptr);
@@ -282,46 +282,12 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
 }
 
 int Renderer::initVertexBuffer(DeviceInfo device) {
-  VkBufferCreateInfo createInfo = {};
-  createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  createInfo.pNext = nullptr;
-  createInfo.flags = 0;
-  createInfo.size = Data::vertexDataSize;
+  initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, Data::vertexDataSize, &this->vertexBuffer);
 
-  createInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-  createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  createInfo.queueFamilyIndexCount = 0;       // Only used when we have concurrent sharing mode
-  createInfo.pQueueFamilyIndices = nullptr;
+  allocateDeviceMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &this->hostVisibleMemory);
+  // allocateDeviceMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->deviceLocalMemory);
 
-  vkCreateBuffer(device.logical, &createInfo, nullptr, &this->vertexBuffer);
-
-
-  VkMemoryRequirements memoryRequirements;
-  VkPhysicalDeviceMemoryProperties memoryProperties;
-  vkGetBufferMemoryRequirements(device.logical, this->vertexBuffer, &memoryRequirements);
-  vkGetPhysicalDeviceMemoryProperties(device.physical, &memoryProperties);
-
-  uint32_t memeoryIndex = -1;
-  for (int i = 0; i < memoryProperties.memoryTypeCount;  i++) {
-    if (memoryRequirements.memoryTypeBits & (1 << i)
-     && memoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-      memeoryIndex = i;
-      break;
-    }
-  }
-  if (memeoryIndex == -1) {
-    std::cout << "Didn't find memory for buffer allocation" << std::endl;
-  }
-
-  VkMemoryAllocateInfo memoryAllocateInfo = {};
-  memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  memoryAllocateInfo.pNext = nullptr;
-  memoryAllocateInfo.allocationSize = memoryRequirements.size;
-  memoryAllocateInfo.memoryTypeIndex = memeoryIndex;
-
-  vkAllocateMemory(device.logical, &memoryAllocateInfo, nullptr, &this->deviceMemory);
-
-  vkBindBufferMemory(device.logical, this->vertexBuffer, this->deviceMemory, 0);
+  vkBindBufferMemory(device.logical, this->vertexBuffer, this->hostVisibleMemory, 0);
 
   return updateVertexBuffer(device, Data::vertexData, Data::vertexDataSize);
 }
@@ -543,7 +509,7 @@ int Renderer::initRenderer(DeviceInfo device, VkFormat format) {
 
 int Renderer::updateVertexBuffer(DeviceInfo device, const void* data, size_t size) {
   void *ptrBuffer;
-  vkMapMemory(device.logical, this->deviceMemory, 0, Data::vertexDataSize, 0, &ptrBuffer);
+  vkMapMemory(device.logical, this->hostVisibleMemory, 0, Data::vertexDataSize, 0, &ptrBuffer);
   memcpy(ptrBuffer, data, size);
 
   VkMappedMemoryRange memoryRange = {};
@@ -551,9 +517,52 @@ int Renderer::updateVertexBuffer(DeviceInfo device, const void* data, size_t siz
   memoryRange.pNext = nullptr;
   memoryRange.size = VK_WHOLE_SIZE;
   memoryRange.offset = 0;
-  memoryRange.memory = this->deviceMemory;
+  memoryRange.memory = this->hostVisibleMemory;
   vkFlushMappedMemoryRanges(device.logical, 1, &memoryRange);
 
-  vkUnmapMemory(device.logical, this->deviceMemory);
+  vkUnmapMemory(device.logical, this->hostVisibleMemory);
+  return 0;
+}
+
+int Renderer::allocateDeviceMemory(DeviceInfo device, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
+  VkMemoryRequirements memoryRequirements;
+  VkPhysicalDeviceMemoryProperties memoryProperties;
+  vkGetBufferMemoryRequirements(device.logical, this->vertexBuffer, &memoryRequirements);
+  vkGetPhysicalDeviceMemoryProperties(device.physical, &memoryProperties);
+
+  uint32_t memeoryIndex = -1;
+  for (int i = 0; i < memoryProperties.memoryTypeCount;  i++) {
+    if (memoryRequirements.memoryTypeBits & (1 << i)
+        && memoryProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags) {
+      memeoryIndex = i;
+      break;
+    }
+  }
+  if (memeoryIndex == -1) {
+    std::cout << "Didn't find memory for buffer allocation" << std::endl;
+  }
+
+  VkMemoryAllocateInfo memoryAllocateInfo = {};
+  memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  memoryAllocateInfo.pNext = nullptr;
+  memoryAllocateInfo.allocationSize = memoryRequirements.size;
+  memoryAllocateInfo.memoryTypeIndex = memeoryIndex;
+
+  vkAllocateMemory(device.logical, &memoryAllocateInfo, nullptr, memory);
+  return 0;
+}
+
+int Renderer::initBuffer(DeviceInfo device, VkBufferUsageFlags bufferUsageFlags, size_t size, VkBuffer *buffer) {
+  VkBufferCreateInfo createInfo = {};
+  createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  createInfo.pNext = nullptr;
+  createInfo.flags = 0;
+  createInfo.size = size;
+  createInfo.usage = bufferUsageFlags;
+  createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  createInfo.queueFamilyIndexCount = 0;       // Only used when we have concurrent sharing mode
+  createInfo.pQueueFamilyIndices = nullptr;
+
+  vkCreateBuffer(device.logical, &createInfo, nullptr, buffer);
   return 0;
 }
