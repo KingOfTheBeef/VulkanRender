@@ -15,6 +15,8 @@ private:
 
 public:
     void initialise(const char* title, int width, int height);
+    void idleUntilNotMinimised();
+    bool isMinimised() {return SDL_GetWindowFlags(this->window) & SDL_WINDOW_MINIMIZED;} ;
     void clean();
 #ifdef VK_USE_PLATFORM_WIN32_KHR
     HINSTANCE getWindowInstance();
