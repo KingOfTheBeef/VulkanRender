@@ -97,5 +97,7 @@ VK_DEVICE_FUNCTION( vkCmdBindVertexBuffers )
 VK_DEVICE_FUNCTION( vkDestroyFence )
 VK_DEVICE_FUNCTION( vkDestroyBuffer )
 VK_DEVICE_FUNCTION( vkFreeMemory )
+VK_DEVICE_FUNCTION( vkCmdCopyBuffer )
+
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

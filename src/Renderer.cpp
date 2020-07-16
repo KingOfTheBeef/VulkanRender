@@ -100,8 +100,12 @@ void Renderer::clean(DeviceInfo device) {
     }
   }
 
+  vkDestroyBuffer(device.logical, this->stagingBuffer, nullptr);
   vkDestroyBuffer(device.logical, this->vertexBuffer, nullptr);
+
+  vkFreeMemory(device.logical, this->deviceLocalMemory, nullptr);
   vkFreeMemory(device.logical, this->hostVisibleMemory, nullptr);
+
   vkDestroyCommandPool(device.logical, this->cmdPool, nullptr);
   vkDestroyRenderPass(device.logical, this->renderPass, nullptr);
   vkDestroyPipeline(device.logical, this->pipeline, nullptr);
@@ -281,15 +285,18 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   return 0;
 }
 
-int Renderer::initVertexBuffer(DeviceInfo device) {
-  initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, Data::vertexDataSize, &this->vertexBuffer);
+int Renderer::initBuffersAndMemory(DeviceInfo device) {
+  initBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 4096, &this->stagingBuffer);
+  initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, Data::vertexDataSize, &this->vertexBuffer);
 
-  allocateDeviceMemory(device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &this->hostVisibleMemory);
-  // allocateDeviceMemory(device, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->deviceLocalMemory);
+  allocateDeviceMemory(device,this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &this->hostVisibleMemory);
+  allocateDeviceMemory(device,this->vertexBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->deviceLocalMemory);
 
-  vkBindBufferMemory(device.logical, this->vertexBuffer, this->hostVisibleMemory, 0);
+  vkBindBufferMemory(device.logical, this->stagingBuffer, this->hostVisibleMemory, 0);
+  vkBindBufferMemory(device.logical, this->vertexBuffer, this->deviceLocalMemory, 0);
 
-  return updateVertexBuffer(device, Data::vertexData, Data::vertexDataSize);
+  updateStagingBuffer(device, Data::vertexData, Data::vertexDataSize);
+  return submitStagingBuffer(device);
 }
 
 
@@ -405,12 +412,12 @@ int Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame,
 }
 
 int Renderer::draw(DeviceInfo device, SwapchainInfo swapchain) {
-  static uint32_t virtualFrameIndex = 0;
-  virtualFrameIndex = (virtualFrameIndex + 1) % this->virtualFrameCount;
+  this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
   uint32_t imageIndex = 0;
-  vkWaitForFences(device.logical, 1, &this->virtualFrames[virtualFrameIndex].fence, VK_TRUE, UINT64_MAX);
-  vkResetFences(device.logical, 1, &this->virtualFrames[virtualFrameIndex].fence);
-  VkResult result = vkAcquireNextImageKHR(device.logical, swapchain.swapchain, UINT64_MAX, this->virtualFrames[virtualFrameIndex].imageAvailableSema, VK_NULL_HANDLE, &imageIndex);
+  vkWaitForFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence, VK_TRUE, UINT64_MAX);
+  vkResetFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence);
+
+  VkResult result = vkAcquireNextImageKHR(device.logical, swapchain.swapchain, UINT64_MAX, this->virtualFrames[currentVirtualFrame].imageAvailableSema, VK_NULL_HANDLE, &imageIndex);
   switch (result) {
     case VK_SUCCESS:
     case VK_SUBOPTIMAL_KHR:
@@ -419,21 +426,21 @@ int Renderer::draw(DeviceInfo device, SwapchainInfo swapchain) {
       return result;
   }
 
-  prepareVirtualFrame(device, &this->virtualFrames[virtualFrameIndex], swapchain.extent, &swapchain.imageViews[imageIndex], swapchain.images[imageIndex]);
+  prepareVirtualFrame(device, &this->virtualFrames[currentVirtualFrame], swapchain.extent, &swapchain.imageViews[imageIndex], swapchain.images[imageIndex]);
 
   VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
   VkSubmitInfo submitInfo = {};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.pNext = nullptr;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &this->virtualFrames[virtualFrameIndex].cmdBuffer; // &this->cmdBuffers[imageIndex];
+  submitInfo.pCommandBuffers = &this->virtualFrames[currentVirtualFrame].cmdBuffer; // &this->cmdBuffers[imageIndex];
   submitInfo.signalSemaphoreCount = 1;
-  submitInfo.pSignalSemaphores = &this->virtualFrames[virtualFrameIndex].imageFinishProcessingSema;
+  submitInfo.pSignalSemaphores = &this->virtualFrames[currentVirtualFrame].imageFinishProcessingSema;
   submitInfo.waitSemaphoreCount = 1;
-  submitInfo.pWaitSemaphores = &this->virtualFrames[virtualFrameIndex].imageAvailableSema;
+  submitInfo.pWaitSemaphores = &this->virtualFrames[currentVirtualFrame].imageAvailableSema;
   submitInfo.pWaitDstStageMask = &stageFlags;
 
-  vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[virtualFrameIndex].fence);
+  vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[currentVirtualFrame].fence);
 
   VkPresentInfoKHR presentInfo = {};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -441,7 +448,7 @@ int Renderer::draw(DeviceInfo device, SwapchainInfo swapchain) {
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = &swapchain.swapchain;
   presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = &this->virtualFrames[virtualFrameIndex].imageFinishProcessingSema;
+  presentInfo.pWaitSemaphores = &this->virtualFrames[currentVirtualFrame].imageFinishProcessingSema;
   presentInfo.pImageIndices = &imageIndex;
   presentInfo.pResults = nullptr;
 
@@ -501,15 +508,15 @@ int Renderer::initCommandPool(DeviceInfo device) {
 int Renderer::initRenderer(DeviceInfo device, VkFormat format) {
   this->initRenderPass(device.logical, format);
   this->initGraphicPipeline(device);
-  this->initVertexBuffer(device);
   this->initCommandPool(device);
   this->initVirtualFrames(device);
+  this->initBuffersAndMemory(device);
   return 0;
 }
 
-int Renderer::updateVertexBuffer(DeviceInfo device, const void* data, size_t size) {
+int Renderer::updateStagingBuffer(DeviceInfo device, const void *data, size_t size) {
   void *ptrBuffer;
-  vkMapMemory(device.logical, this->hostVisibleMemory, 0, Data::vertexDataSize, 0, &ptrBuffer);
+  vkMapMemory(device.logical, this->hostVisibleMemory, 0, size, 0, &ptrBuffer);
   memcpy(ptrBuffer, data, size);
 
   VkMappedMemoryRange memoryRange = {};
@@ -524,10 +531,10 @@ int Renderer::updateVertexBuffer(DeviceInfo device, const void* data, size_t siz
   return 0;
 }
 
-int Renderer::allocateDeviceMemory(DeviceInfo device, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
+int Renderer::allocateDeviceMemory(DeviceInfo device, VkBuffer buffer, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
   VkMemoryRequirements memoryRequirements;
   VkPhysicalDeviceMemoryProperties memoryProperties;
-  vkGetBufferMemoryRequirements(device.logical, this->vertexBuffer, &memoryRequirements);
+  vkGetBufferMemoryRequirements(device.logical, buffer, &memoryRequirements);
   vkGetPhysicalDeviceMemoryProperties(device.physical, &memoryProperties);
 
   uint32_t memeoryIndex = -1;
@@ -565,4 +572,55 @@ int Renderer::initBuffer(DeviceInfo device, VkBufferUsageFlags bufferUsageFlags,
 
   vkCreateBuffer(device.logical, &createInfo, nullptr, buffer);
   return 0;
+}
+
+int Renderer::submitStagingBuffer(DeviceInfo device) {
+  this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
+  vkWaitForFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence, VK_TRUE, UINT64_MAX);
+  vkResetFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence);
+  VkCommandBufferBeginInfo beginInfo = {};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.pNext = nullptr;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  beginInfo.pInheritanceInfo = nullptr;
+
+  vkBeginCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, &beginInfo);
+
+  VkBufferCopy bufferCopy = {};
+  bufferCopy.size = Data::vertexDataSize;
+  bufferCopy.srcOffset = 0;
+  bufferCopy.dstOffset = 0;
+  vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer, this->vertexBuffer, 1, &bufferCopy);
+
+  VkBufferMemoryBarrier memoryBarrier = {};
+  memoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+  memoryBarrier.pNext = nullptr;
+  memoryBarrier.size = VK_WHOLE_SIZE;
+  memoryBarrier.buffer = this->vertexBuffer;
+  memoryBarrier.offset = 0;
+  memoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  memoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  memoryBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+  vkCmdPipelineBarrier(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,0, 0, nullptr, 1, &memoryBarrier, 0, nullptr);
+
+  vkEndCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer);
+
+  VkSubmitInfo submitInfo = {};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.pNext = nullptr;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &this->virtualFrames[this->currentVirtualFrame].cmdBuffer;
+  submitInfo.waitSemaphoreCount = 0;
+  submitInfo.pWaitSemaphores = nullptr;
+  submitInfo.signalSemaphoreCount = 0;
+  submitInfo.pSignalSemaphores = nullptr;
+  submitInfo.pWaitDstStageMask = nullptr;
+
+  vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[this->currentVirtualFrame].fence);
+  return 0;
+}
+
+Renderer::Renderer() {
+  this->currentVirtualFrame = 0;
 }

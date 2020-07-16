@@ -11,9 +11,13 @@
 
 class Renderer {
 public:
+    Renderer();
+
     int initRenderer(DeviceInfo device, VkFormat format);
 
-    int updateVertexBuffer(DeviceInfo device, const void* data, size_t size);
+    int updateStagingBuffer(DeviceInfo device, const void *data, size_t size);
+
+    int submitStagingBuffer(DeviceInfo device);
 
     int draw(DeviceInfo device, SwapchainInfo swapchain);
 
@@ -24,15 +28,17 @@ private:
     VkRenderPass            renderPass;
     VkCommandPool           cmdPool;
     static const uint32_t   virtualFrameCount = 3;
+    uint32_t                currentVirtualFrame;
     VirtualFrame            virtualFrames[virtualFrameCount];
     VkBuffer                vertexBuffer;
+    VkBuffer                stagingBuffer;
     VkDeviceMemory          hostVisibleMemory;
     VkDeviceMemory          deviceLocalMemory;
 
 private:
     int initRenderPass(VkDevice device, VkFormat format);
 
-    int allocateDeviceMemory(DeviceInfo device, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
+    int allocateDeviceMemory(DeviceInfo device, VkBuffer buffer, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
 
     int initBuffer(DeviceInfo device, VkBufferUsageFlags bufferUsageFlags, size_t size, VkBuffer *buffer);
 
@@ -44,7 +50,7 @@ private:
 
     int initCommandPool(DeviceInfo device);
 
-    int initVertexBuffer(DeviceInfo device);
+    int initBuffersAndMemory(DeviceInfo device);
 
     int prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkExtent2D extent, VkImageView *imageView, VkImage image);
 };
