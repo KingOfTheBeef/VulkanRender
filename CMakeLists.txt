@@ -3,10 +3,10 @@ project(DynamicLink)
 
 #set(CMAKE_CXX_STANDARD 14)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../VulkanSDK/1.2.135.0/Include)
-include_directories(../../SDL2-2.0.9/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../VulkanSDK/1.2.141.2/Include)
+include_directories(../../SDL2/SDL2-2.0.12/include)
 
-set(SDL_LIB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../SDL2-2.0.9/lib/x86/)
+set(SDL_LIB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../SDL2/SDL2-2.0.12/lib/x86/)
 find_library(SDL2 SDL2.lib PATH ${SDL_LIB_PATH})
 find_library(SDL2main SDL2main.lib PATH ${SDL_LIB_PATH})
 
