@@ -230,9 +230,9 @@ bool Core::checkPhysicalDeviceQueues(VkPhysicalDevice physicalDevice, uint32_t *
 bool Core::checkPhysicalDeviceExtensions(VkPhysicalDevice physicalDevice, const uint8_t targetExtensionCount, const char **targetExtensions) {
   // Check for device extensions (e.g. swap chain)
   uint32_t extensionCount = 0;
-  VkExtensionProperties extensionProperties[20];
+  VkExtensionProperties extensionProperties[100];
   vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
-  extensionCount = extensionCount < 20 ? extensionCount : 20;
+  extensionCount = extensionCount < 100 ? extensionCount : 100;
   vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, extensionProperties);
 
   for (uint8_t i = 0; i < targetExtensionCount; i++) {
