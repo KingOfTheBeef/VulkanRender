@@ -36,6 +36,8 @@ private:
     VkDeviceMemory          deviceLocalMemory;
 
 private:
+    int createImage(DeviceInfo device, uint32_t width, uint32_t height, VkImage *image);
+
     int initRenderPass(VkDevice device, VkFormat format);
 
     int allocateDeviceMemory(DeviceInfo device, VkBuffer buffer, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
