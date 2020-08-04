@@ -289,8 +289,8 @@ int Renderer::initBuffersAndMemory(DeviceInfo device) {
   initBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 4096, &this->stagingBuffer);
   initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, Data::vertexDataSize, &this->vertexBuffer);
 
-  allocateDeviceMemory(device,this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &this->hostVisibleMemory);
-  allocateDeviceMemory(device,this->vertexBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->deviceLocalMemory);
+    allocateBufferMemory(device, this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &this->hostVisibleMemory);
+    allocateBufferMemory(device, this->vertexBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->deviceLocalMemory);
 
   vkBindBufferMemory(device.logical, this->stagingBuffer, this->hostVisibleMemory, 0);
   vkBindBufferMemory(device.logical, this->vertexBuffer, this->deviceLocalMemory, 0);
@@ -531,34 +531,6 @@ int Renderer::updateStagingBuffer(DeviceInfo device, const void *data, size_t si
   return 0;
 }
 
-int Renderer::allocateDeviceMemory(DeviceInfo device, VkBuffer buffer, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
-  VkMemoryRequirements memoryRequirements;
-  VkPhysicalDeviceMemoryProperties memoryProperties;
-  vkGetBufferMemoryRequirements(device.logical, buffer, &memoryRequirements);
-  vkGetPhysicalDeviceMemoryProperties(device.physical, &memoryProperties);
-
-  uint32_t memeoryIndex = -1;
-  for (int i = 0; i < memoryProperties.memoryTypeCount;  i++) {
-    if (memoryRequirements.memoryTypeBits & (1 << i)
-        && memoryProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags) {
-      memeoryIndex = i;
-      break;
-    }
-  }
-  if (memeoryIndex == -1) {
-    std::cout << "Didn't find memory for buffer allocation" << std::endl;
-  }
-
-  VkMemoryAllocateInfo memoryAllocateInfo = {};
-  memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  memoryAllocateInfo.pNext = nullptr;
-  memoryAllocateInfo.allocationSize = memoryRequirements.size;
-  memoryAllocateInfo.memoryTypeIndex = memeoryIndex;
-
-  vkAllocateMemory(device.logical, &memoryAllocateInfo, nullptr, memory);
-  return 0;
-}
-
 int Renderer::initBuffer(DeviceInfo device, VkBufferUsageFlags bufferUsageFlags, size_t size, VkBuffer *buffer) {
   VkBufferCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -647,4 +619,42 @@ int Renderer::createImage(DeviceInfo device, uint32_t width, uint32_t height, Vk
     imageCreateInfo.pQueueFamilyIndices = nullptr;
 
     return vkCreateImage(device.logical, &imageCreateInfo, nullptr, image) != VK_SUCCESS;
+}
+
+int Renderer::allocateBufferMemory(DeviceInfo device, VkBuffer buffer, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(device.logical, buffer, &memoryRequirements);
+    return this->allocateMemory(device, memoryRequirements, memoryPropertyFlags, memory);
+}
+
+int Renderer::allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequirements, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(device.physical, &memoryProperties);
+
+    uint32_t memeoryIndex = -1;
+    for (int i = 0; i < memoryProperties.memoryTypeCount;  i++) {
+        if (memoryRequirements.memoryTypeBits & (1 << i)
+            && memoryProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags) {
+            memeoryIndex = i;
+            break;
+        }
+    }
+    if (memeoryIndex == -1) {
+        std::cout << "Didn't find memory for allocation" << std::endl;
+    }
+
+    VkMemoryAllocateInfo memoryAllocateInfo = {};
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = nullptr;
+    memoryAllocateInfo.allocationSize = memoryRequirements.size;
+    memoryAllocateInfo.memoryTypeIndex = memeoryIndex;
+
+    vkAllocateMemory(device.logical, &memoryAllocateInfo, nullptr, memory);
+    return 0;
+}
+
+int Renderer::allocateImageMemory(DeviceInfo device, VkImage image, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
+    VkMemoryRequirements memoryRequirements;
+    vkGetImageMemoryRequirements(device.logical, image, &memoryRequirements);
+    return this->allocateMemory(device, memoryRequirements, memoryPropertyFlags, memory);
 }
