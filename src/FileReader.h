@@ -11,8 +11,15 @@ struct BinaryFile {
     ~BinaryFile();
 };
 
+struct ImageFile : BinaryFile {
+    uint32_t width;
+    uint32_t height;
+    uint32_t channels;
+};
+
 namespace FileReader {
-    int readFileBin(const char *fileName, BinaryFile *file);
+    int loadImage(const char *filename, ImageFile *file);
+    int loadFileBin(const char *filename, BinaryFile *file);
     void freeFileBin(BinaryFile *file);
 }
 

@@ -72,7 +72,7 @@ int Renderer::initRenderPass(VkDevice device, VkFormat format) {
 
 int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderModule *shaderModule) {
   BinaryFile prog;
-  if (FileReader::readFileBin(filename, &prog)) {
+  if (FileReader::loadFileBin(filename, &prog)) {
     std::cout << "Unable to open file " << filename << std::endl;
   }
 
@@ -657,4 +657,26 @@ int Renderer::allocateImageMemory(DeviceInfo device, VkImage image, VkMemoryProp
     VkMemoryRequirements memoryRequirements;
     vkGetImageMemoryRequirements(device.logical, image, &memoryRequirements);
     return this->allocateMemory(device, memoryRequirements, memoryPropertyFlags, memory);
+}
+
+int Renderer::createImageView(DeviceInfo device, VkImage image, VkImageView *imageView) {
+    VkImageViewCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.image = image;
+    createInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT; //Todo: Fix format hardcode
+    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    createInfo.subresourceRange.layerCount = 1;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.levelCount = 1;
+    createInfo.subresourceRange.baseMipLevel = 0;
+
+    vkCreateImageView(device.logical, &createInfo, nullptr, imageView);
+    return 0;
 }

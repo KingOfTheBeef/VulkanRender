@@ -6,8 +6,11 @@
 #include <fstream>
 #include "FileReader.h"
 
-int FileReader::readFileBin(const char* fileName, BinaryFile *file) {
-  std::ifstream fileStream(fileName, std::ios_base::binary);
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+int FileReader::loadFileBin(const char* filename, BinaryFile *file) {
+  std::ifstream fileStream(filename, std::ios_base::binary);
   if (fileStream.is_open()) {
     fileStream.seekg(0, fileStream.end);
     file->length = fileStream.tellg();
@@ -20,6 +23,18 @@ int FileReader::readFileBin(const char* fileName, BinaryFile *file) {
   }
   return 0;
 }
+
+int loadImage(const char *filename, ImageFile *file) {
+    int width, height, channels;
+    file->data = reinterpret_cast<char *>(stbi_load(filename, &width, &height, &channels, 0));
+    stbi_image_free(file->data);
+    file->width = width;
+    file->height = height;
+    file->length = width * height * channels;
+    file->channels = channels;
+    return 0;
+}
+
 
 void FileReader::freeFileBin(BinaryFile *file) {
   delete(file->data);

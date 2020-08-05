@@ -5,6 +5,7 @@ project(DynamicLink)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../VulkanSDK/1.2.141.2/Include)
 include_directories(../../SDL2/SDL2-2.0.12/include)
+include_directories(../../stb)
 
 set(SDL_LIB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../SDL2/SDL2-2.0.12/lib/x86/)
 find_library(SDL2 SDL2.lib PATH ${SDL_LIB_PATH})

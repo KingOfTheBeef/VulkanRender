@@ -38,6 +38,8 @@ private:
 private:
     int createImage(DeviceInfo device, uint32_t width, uint32_t height, VkImage *image);
 
+    int createImageView(DeviceInfo device, VkImage image, VkImageView *imageView); // This function could also be used in core for swapchain images, (perhaps move swapchain into render class?)
+
     int initRenderPass(VkDevice device, VkFormat format);
 
     int allocateBufferMemory(DeviceInfo device, VkBuffer buffer, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
