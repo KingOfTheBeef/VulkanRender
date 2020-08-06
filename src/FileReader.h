@@ -5,17 +5,7 @@
 #ifndef DYNAMICLINK_FILEREADER_H
 #define DYNAMICLINK_FILEREADER_H
 
-struct BinaryFile {
-    uint32_t length;
-    char *data;
-    ~BinaryFile();
-};
-
-struct ImageFile : BinaryFile {
-    uint32_t width;
-    uint32_t height;
-    uint32_t channels;
-};
+#include "Structures.h"
 
 namespace FileReader {
     int loadImage(const char *filename, ImageFile *file);

@@ -80,7 +80,7 @@ int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderMo
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   createInfo.pNext = nullptr;
   createInfo.flags = 0;
-  createInfo.codeSize = prog.length;
+  createInfo.codeSize = prog.size;
   createInfo.pCode = reinterpret_cast<uint32_t*>(prog.data);
 
   VkResult result = vkCreateShaderModule(device, &createInfo, nullptr, shaderModule);
@@ -680,3 +680,109 @@ int Renderer::createImageView(DeviceInfo device, VkImage image, VkImageView *ima
     vkCreateImageView(device.logical, &createInfo, nullptr, imageView);
     return 0;
 }
+
+int Renderer::updateTexture(DeviceInfo device, ImageFile imageFile, VkImage image) {
+    this->updateStagingBuffer(device, imageFile.data, imageFile.size);
+
+    this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
+    vkWaitForFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence);
+
+    VirtualFrame virtualFrame = this->virtualFrames[this->currentVirtualFrame];
+
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.pNext = nullptr;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    beginInfo.pInheritanceInfo = nullptr;
+
+    vkBeginCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, &beginInfo);
+
+    VkImageSubresourceRange subresourceRange = {};
+    subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    subresourceRange.levelCount = 1;
+    subresourceRange.baseMipLevel = 0;
+    subresourceRange.layerCount = 1;
+    subresourceRange.baseArrayLayer = 0;
+
+    VkImageMemoryBarrier imageMemoryBarrier = {};
+    imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    imageMemoryBarrier.pNext = nullptr;
+    imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    imageMemoryBarrier.image = image; // TODO: Put the image for the texture
+    imageMemoryBarrier.srcQueueFamilyIndex = device.graphicQueueIndex;
+    imageMemoryBarrier.dstQueueFamilyIndex = device.graphicQueueIndex;
+    imageMemoryBarrier.srcAccessMask = 0;
+    imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    imageMemoryBarrier.subresourceRange = subresourceRange;
+
+    vkCmdPipelineBarrier(virtualFrame.cmdBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+
+    VkBufferImageCopy bufferImageCopy = {};
+    bufferImageCopy.bufferOffset = 0;
+    bufferImageCopy.bufferImageHeight = 0;
+    bufferImageCopy.bufferRowLength = 0;
+    bufferImageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    bufferImageCopy.imageSubresource.layerCount = 1;
+    bufferImageCopy.imageSubresource.baseArrayLayer = 0;
+    bufferImageCopy.imageSubresource.mipLevel = 0;
+    bufferImageCopy.imageOffset = {0, 0, 0};
+    bufferImageCopy.imageExtent = {imageFile.width , imageFile.height , 1};
+
+    vkCmdCopyBufferToImage(virtualFrame.cmdBuffer, this->stagingBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferImageCopy);
+
+    // Alter the previous image memory barrier to move to sample layout
+    imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    imageMemoryBarrier.subresourceRange = subresourceRange;
+
+    vkCmdPipelineBarrier(virtualFrame.cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+
+    vkEndCommandBuffer(virtualFrame.cmdBuffer);
+
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = nullptr;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &virtualFrame.cmdBuffer;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &virtualFrame.imageFinishProcessingSema;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &virtualFrame.imageAvailableSema;
+    submitInfo.pWaitDstStageMask = nullptr;
+
+    vkQueueSubmit(device.graphicQueue, 1, &submitInfo, virtualFrame.fence);
+    return 0;
+}
+
+int Renderer::initSampler(DeviceInfo device, VkSampler *sampler) {
+
+    VkSamplerCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.magFilter = VK_FILTER_LINEAR;
+    createInfo.minFilter = VK_FILTER_LINEAR;
+    createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    createInfo.mipLodBias = 0.0f;
+    createInfo.anisotropyEnable = VK_FALSE;
+    createInfo.maxAnisotropy = 1.0f;
+    createInfo.compareEnable = VK_FALSE;
+    createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    createInfo.minLod = 0.0f;
+    createInfo.maxLod = 0.0f;
+    createInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+    createInfo.unnormalizedCoordinates = VK_FALSE;
+
+    vkCreateSampler(device.logical, &createInfo, nullptr, sampler);
+    return 0;
+}
+
+

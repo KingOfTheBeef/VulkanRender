@@ -15,6 +15,8 @@ public:
 
     int initRenderer(DeviceInfo device, VkFormat format);
 
+    int updateTexture(DeviceInfo device, ImageFile imageFile, VkImage image);
+
     int updateStagingBuffer(DeviceInfo device, const void *data, size_t size);
 
     int submitStagingBuffer(DeviceInfo device);
@@ -61,6 +63,8 @@ private:
     int initBuffersAndMemory(DeviceInfo device);
 
     int prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkExtent2D extent, VkImageView *imageView, VkImage image);
+
+    int initSampler(DeviceInfo device);
 };
 
 #endif //DYNAMICLINK_RENDERER_H

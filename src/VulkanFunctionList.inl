@@ -100,6 +100,8 @@ VK_DEVICE_FUNCTION( vkFreeMemory )
 VK_DEVICE_FUNCTION( vkCmdCopyBuffer )
 VK_DEVICE_FUNCTION( vkCreateImage )
 VK_DEVICE_FUNCTION( vkGetImageMemoryRequirements )
+VK_DEVICE_FUNCTION( vkCmdCopyBufferToImage )
+VK_DEVICE_FUNCTION( vkCreateSampler )
 
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

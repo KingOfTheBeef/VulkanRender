@@ -13,10 +13,10 @@ int FileReader::loadFileBin(const char* filename, BinaryFile *file) {
   std::ifstream fileStream(filename, std::ios_base::binary);
   if (fileStream.is_open()) {
     fileStream.seekg(0, fileStream.end);
-    file->length = fileStream.tellg();
-    file->data = new char[file->length];
+    file->size = fileStream.tellg();
+    file->data = new char[file->size];
     fileStream.seekg(0);
-    fileStream.read(file->data, file->length);
+    fileStream.read(file->data, file->size);
     fileStream.close();
   } else {
     return -1;
@@ -30,7 +30,7 @@ int loadImage(const char *filename, ImageFile *file) {
     stbi_image_free(file->data);
     file->width = width;
     file->height = height;
-    file->length = width * height * channels;
+    file->size = width * height * channels;
     file->channels = channels;
     return 0;
 }
