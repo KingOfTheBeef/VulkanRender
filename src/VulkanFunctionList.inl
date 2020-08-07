@@ -102,6 +102,10 @@ VK_DEVICE_FUNCTION( vkCreateImage )
 VK_DEVICE_FUNCTION( vkGetImageMemoryRequirements )
 VK_DEVICE_FUNCTION( vkCmdCopyBufferToImage )
 VK_DEVICE_FUNCTION( vkCreateSampler )
+VK_DEVICE_FUNCTION( vkCreateDescriptorSetLayout )
+VK_DEVICE_FUNCTION( vkCreateDescriptorPool )
+VK_DEVICE_FUNCTION( vkAllocateDescriptorSets )
+VK_DEVICE_FUNCTION( vkUpdateDescriptorSets )
 
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

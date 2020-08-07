@@ -785,4 +785,76 @@ int Renderer::initSampler(DeviceInfo device, VkSampler *sampler) {
     return 0;
 }
 
+int Renderer::initDescriptorSetLayout(DeviceInfo device, VkDescriptorSetLayout *descriptorSetLayout) {
+
+    VkDescriptorSetLayoutBinding bindings[1];
+    bindings[0].binding = 0;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    bindings[0].descriptorCount = 1;
+    bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    bindings[0].pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
+    createInfo.bindingCount = 1;
+    createInfo.pBindings = bindings;
+
+    vkCreateDescriptorSetLayout(device.logical, &createInfo, nullptr, descriptorSetLayout);
+    return 0;
+}
+
+int Renderer::initDescriptorPool(DeviceInfo device, VkDescriptorPool *descriptorPool) {
+
+    VkDescriptorPoolSize descriptorPoolSize[1];
+    descriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorPoolSize[0].descriptorCount = 1;
+
+    VkDescriptorPoolCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    createInfo.pNext = nullptr;
+    createInfo.poolSizeCount = 1;
+    createInfo.maxSets = 1;
+    createInfo.pPoolSizes = descriptorPoolSize;
+
+    vkCreateDescriptorPool(device.logical, &createInfo, nullptr, descriptorPool);
+    return 0;
+}
+
+int Renderer::allocateDescriptor(DeviceInfo device, VkDescriptorPool descriptorPool, VkDescriptorSetLayout *descriptorLayout, VkDescriptorSet *descriptorSet) {
+    VkDescriptorSetAllocateInfo allocateInfo = {};
+    allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocateInfo.pNext = nullptr;
+    allocateInfo.descriptorPool = descriptorPool;
+    allocateInfo.descriptorSetCount = 1;
+    allocateInfo.pSetLayouts = descriptorLayout;
+
+    vkAllocateDescriptorSets(device.logical, &allocateInfo, descriptorSet);
+    return 0;
+}
+
+int Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler) {
+
+    VkDescriptorImageInfo imageInfo;
+    imageInfo.sampler = sampler;
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = imageView;
+
+    VkWriteDescriptorSet writeDescriptorSet = {};
+    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet.pNext = nullptr;
+    writeDescriptorSet.descriptorCount = 1;
+    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writeDescriptorSet.dstSet = descriptorSet;
+    writeDescriptorSet.dstBinding = 0;
+    writeDescriptorSet.dstArrayElement = 0;
+    writeDescriptorSet.pBufferInfo = nullptr;
+    writeDescriptorSet.pImageInfo = &imageInfo;
+    writeDescriptorSet.pTexelBufferView = nullptr;
+
+    vkUpdateDescriptorSets(device.logical, 1, &writeDescriptorSet, 0, nullptr);
+    return 0;
+}
+
 

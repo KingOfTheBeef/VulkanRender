@@ -64,7 +64,15 @@ private:
 
     int prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkExtent2D extent, VkImageView *imageView, VkImage image);
 
-    int initSampler(DeviceInfo device);
+    int initSampler(DeviceInfo device, VkSampler *sampler);
+
+    int initDescriptorPool(DeviceInfo device, VkDescriptorPool *descriptorPool);
+
+    int initDescriptorSetLayout(DeviceInfo device, VkDescriptorSetLayout *descriptorSetLayout);
+
+    int allocateDescriptor(DeviceInfo device, VkDescriptorPool descriptorPool, VkDescriptorSetLayout *descriptorLayout, VkDescriptorSet *descriptorSet);
+
+    int updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler);
 };
 
 #endif //DYNAMICLINK_RENDERER_H
