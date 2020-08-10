@@ -158,7 +158,7 @@ void Core::initDevice() {
     std::cout << "Failed to create logical device" << std::endl;
   }
 
-  // Load vulkan device functions and get queue handles
+  // Load vulkan device functions and get queue handle
   LoadVulkanDeviceFunctions(this->deviceInfo.logical);
   vkGetDeviceQueue(this->deviceInfo.logical, this->deviceInfo.graphicQueueIndex, 0, &this->deviceInfo.graphicQueue);
   vkGetDeviceQueue(this->deviceInfo.logical, this->deviceInfo.displayQueueIndex, 0, &this->deviceInfo.displayQueue);

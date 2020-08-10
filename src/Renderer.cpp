@@ -238,7 +238,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   layoutCreateInfo.pNext = nullptr;
   layoutCreateInfo.flags = 0;
   layoutCreateInfo.setLayoutCount = this->descriptorSetCount;
-  layoutCreateInfo.pSetLayouts = this->descriptorSets;
+  layoutCreateInfo.pSetLayouts = &this->descriptorSets[0].layout;
   layoutCreateInfo.pushConstantRangeCount = 0;
   layoutCreateInfo.pPushConstantRanges = nullptr;
 
@@ -286,7 +286,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
 }
 
 int Renderer::initBuffersAndMemory(DeviceInfo device) {
-  initBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 4096, &this->stagingBuffer);
+  initBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000, &this->stagingBuffer);
   initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, Data::vertexDataSize, &this->vertexBuffer);
 
     allocateBufferMemory(device, this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &this->hostVisibleMemory);
@@ -517,8 +517,11 @@ int Renderer::initRenderer(DeviceInfo device, VkFormat format) {
 
 int Renderer::updateStagingBuffer(DeviceInfo device, const void *data, size_t size) {
   void *ptrBuffer;
+  std::cout << "Hello" << std::endl;
   vkMapMemory(device.logical, this->hostVisibleMemory, 0, size, 0, &ptrBuffer);
+    std::cout << "mate" << std::endl;
   memcpy(ptrBuffer, data, size);
+    std::cout << "matey" << std::endl;
 
   VkMappedMemoryRange memoryRange = {};
   memoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
@@ -604,7 +607,7 @@ int Renderer::createImage(DeviceInfo device, uint32_t width, uint32_t height, Vk
     imageCreateInfo.pNext = nullptr;
     imageCreateInfo.flags = 0;
     imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageCreateInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT; //Todo: Fix format hardcode
+    imageCreateInfo.format = VK_FORMAT_R8G8B8A8_UNORM; //Todo: Fix format hardcode
     imageCreateInfo.extent.width = width;
     imageCreateInfo.extent.height = height;
     imageCreateInfo.extent.depth = 1;
@@ -667,7 +670,7 @@ int Renderer::createImageView(DeviceInfo device, VkImage image, VkImageView *ima
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
     createInfo.image = image;
-    createInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT; //Todo: Fix format hardcode
+    createInfo.format = VK_FORMAT_R8G8B8A8_UNORM; //Todo: Fix format hardcode
     createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
     createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -741,7 +744,7 @@ int Renderer::updateTexture(DeviceInfo device, ImageFile imageFile, VkImage imag
     imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     imageMemoryBarrier.subresourceRange = subresourceRange;
 
-    vkCmdPipelineBarrier(virtualFrame.cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+    vkCmdPipelineBarrier(virtualFrame.cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 
     vkEndCommandBuffer(virtualFrame.cmdBuffer);
 
@@ -753,7 +756,7 @@ int Renderer::updateTexture(DeviceInfo device, ImageFile imageFile, VkImage imag
     submitInfo.pCommandBuffers = &virtualFrame.cmdBuffer;
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &virtualFrame.imageFinishProcessingSema;
-    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.waitSemaphoreCount = 0; //1;
     submitInfo.pWaitSemaphores = &virtualFrame.imageAvailableSema;
     submitInfo.pWaitDstStageMask = nullptr;
 
@@ -873,7 +876,7 @@ int Renderer::initTexture(DeviceInfo device) {
     VkImageView imageView;
     VkDeviceMemory memory;
     createImage(device, imageFile.width, imageFile.height, &image);
-    allocateImageMemory(device, image, 0, &memory);
+    allocateImageMemory(device, image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory);
     vkBindImageMemory(device.logical, image, memory, 0);
     createImageView(device, image, &imageView);
 
@@ -885,14 +888,12 @@ int Renderer::initTexture(DeviceInfo device) {
     initSampler(device, &sampler);
 
     // Create descriptor
-    VkDescriptorSetLayout layout;
-    VkDescriptorPool pool;
-    initDescriptorSetLayout(device, &layout);
-    initDescriptorPool(device, &pool);
-    allocateDescriptor(device, pool, &layout, &this->descriptorSets[0]);
-    updateDescriptor(device, this->descriptorSets[0], imageView, sampler);
+    initDescriptorSetLayout(device, &this->descriptorSets[0].layout);
+    initDescriptorPool(device, &this->descriptorSets[0].pool);
+    allocateDescriptor(device, this->descriptorSets[0].pool, &this->descriptorSets[0].layout, &this->descriptorSets[0].handle);
+    updateDescriptor(device, this->descriptorSets[0].handle, imageView, sampler);
 
-    FileReader::freeFileBin(&imageFile);
+    FileReader::freeImage(&imageFile);
     return 0;
 }
 

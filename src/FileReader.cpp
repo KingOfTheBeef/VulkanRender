@@ -27,23 +27,28 @@ int FileReader::loadFileBin(const char* filename, BinaryFile *file) {
 int FileReader::loadImage(const char *filename, ImageFile *file) {
     int width, height, channels;
     file->data = reinterpret_cast<char *>(stbi_load(filename, &width, &height, &channels, 0));
-    std::cout << "real w: " << width << std::endl;
-    std::cout << "real h: " << height << std::endl;
     file->width = width;
     file->height = height;
     file->size = width * height * channels;
     file->channels = channels;
-    stbi_image_free(file->data);
     return 0;
 }
 
+int FileReader::freeImage(ImageFile *file) {
+    std::cout << "Attempt free image" << std::endl;
+    std::cout << (void *) file->data << std::endl;
+    if ( ((void *) file->data) != nullptr) {
+        std::cout << "Here we are" << std::endl;
+        stbi_image_free(file->data);
+        std::cout << (void *) file->data << std::endl;
+        file->data = nullptr;
+        std::cout << (void *) file->data << std::endl;
+    }
+    std::cout << "Success" << std::endl;
+    return 0;
+}
 
 void FileReader::freeFileBin(BinaryFile *file) {
   delete(file->data);
   file->data = nullptr;
-}
-
-BinaryFile::~BinaryFile() {
-  delete(this->data);
-  this->data = nullptr;
 }

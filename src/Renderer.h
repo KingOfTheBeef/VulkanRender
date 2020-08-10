@@ -40,7 +40,7 @@ private:
     VkDeviceMemory          deviceLocalMemory;
 
     static const uint32_t   descriptorSetCount = 1;
-    VkDescriptorSet         descriptorSets[descriptorSetCount];
+    DescriptorSet           descriptorSets[descriptorSetCount];
 
 private:
     int createImage(DeviceInfo device, uint32_t width, uint32_t height, VkImage *image);

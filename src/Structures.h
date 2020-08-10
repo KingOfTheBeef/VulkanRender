@@ -8,10 +8,15 @@
 #define NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
+struct DescriptorSet {
+    VkDescriptorSet         handle;
+    VkDescriptorSetLayout   layout;
+    VkDescriptorPool        pool;
+};
+
 struct BinaryFile {
     uint32_t size;
     char *data;
-    ~BinaryFile();
 };
 
 struct ImageFile : BinaryFile {
