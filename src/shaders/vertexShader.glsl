@@ -1,11 +1,16 @@
 #version 450
 
-layout(location = 1) in vec4 colo;
-layout(location = 0) in vec4 posi;
-layout(location = 0) out vec4 v_Color;
+layout(location = 0) in vec4 i_Position;
+layout(location = 1) in vec2 i_Texcoord;
+
+out gl_PerVertex
+{
+    vec4 gl_Position;
+};
+
+layout(location = 0) out vec2 v_Texcoord;
 
 void main() {
-    // vec2 pos[3] = vec2[3]( vec2(-0.7, 0.7), vec2(0.7, 0.7), vec2(0.0, -0.7) );
-    gl_Position = posi;
-    v_Color = colo;
+    gl_Position = i_Position;
+    v_Texcoord = i_Texcoord;
 }
