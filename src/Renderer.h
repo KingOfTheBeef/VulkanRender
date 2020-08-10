@@ -29,6 +29,7 @@ public:
 
 private:
     VkPipeline              pipeline;
+    VkPipelineLayout        pipelineLayout;
     VkRenderPass            renderPass;
     VkCommandPool           cmdPool;
     static const uint32_t   virtualFrameCount = 3;

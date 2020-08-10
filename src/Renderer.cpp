@@ -89,6 +89,10 @@ int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderMo
 }
 
 void Renderer::clean(DeviceInfo device) {
+  if (this->pipelineLayout != VK_NULL_HANDLE) {
+      std::cout << "Yee haw" << std::endl;
+      vkDestroyPipelineLayout(device.logical, this->pipelineLayout, nullptr);
+  }
 
   for (auto & virtualFrame : this->virtualFrames) {
     vkFreeCommandBuffers(device.logical, this->cmdPool, 1, &virtualFrame.cmdBuffer);
@@ -242,8 +246,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   layoutCreateInfo.pushConstantRangeCount = 0;
   layoutCreateInfo.pPushConstantRanges = nullptr;
 
-  VkPipelineLayout layout;
-  vkCreatePipelineLayout(device.logical, &layoutCreateInfo, nullptr, &layout);
+  vkCreatePipelineLayout(device.logical, &layoutCreateInfo, nullptr, &this->pipelineLayout);
 
   VkDynamicState dynamicStates[2] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
   VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
@@ -267,7 +270,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   createInfo.pRasterizationState = &rasterizationStateCreateInfo;
   createInfo.pMultisampleState = &multisampleStateCreateInfo;
   createInfo.pColorBlendState = &colorBlendStateCreateInfo;
-  createInfo.layout = layout;
+  createInfo.layout = this->pipelineLayout;
   createInfo.pDepthStencilState = nullptr;
   createInfo.pDynamicState = &dynamicStateCreateInfo;
   createInfo.pTessellationState = nullptr;
@@ -281,7 +284,6 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
 
   vkDestroyShaderModule(device.logical, vertexShader, nullptr);
   vkDestroyShaderModule(device.logical, fragmentShader, nullptr);
-  vkDestroyPipelineLayout(device.logical, layout, nullptr);
   return 0;
 }
 
@@ -384,6 +386,8 @@ int Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame,
 
   VkDeviceSize offset = 0;
   vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 0, 1, &this->vertexBuffer, &offset);
+
+  vkCmdBindDescriptorSets(virtualFrame->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelineLayout, 0, this->descriptorSetCount, &this->descriptorSets[0].handle, 0, nullptr);
 
   vkCmdDraw(virtualFrame->cmdBuffer, Data::vertexCount, 1, 0, 0);
 
@@ -754,10 +758,10 @@ int Renderer::updateTexture(DeviceInfo device, ImageFile imageFile, VkImage imag
     submitInfo.pNext = nullptr;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &virtualFrame.cmdBuffer;
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &virtualFrame.imageFinishProcessingSema;
-    submitInfo.waitSemaphoreCount = 0; //1;
-    submitInfo.pWaitSemaphores = &virtualFrame.imageAvailableSema;
+    submitInfo.signalSemaphoreCount = 0;
+    submitInfo.pSignalSemaphores = nullptr;
+    submitInfo.waitSemaphoreCount = 0;
+    submitInfo.pWaitSemaphores = nullptr;
     submitInfo.pWaitDstStageMask = nullptr;
 
     vkQueueSubmit(device.graphicQueue, 1, &submitInfo, virtualFrame.fence);
