@@ -24,14 +24,16 @@ int FileReader::loadFileBin(const char* filename, BinaryFile *file) {
   return 0;
 }
 
-int loadImage(const char *filename, ImageFile *file) {
+int FileReader::loadImage(const char *filename, ImageFile *file) {
     int width, height, channels;
     file->data = reinterpret_cast<char *>(stbi_load(filename, &width, &height, &channels, 0));
-    stbi_image_free(file->data);
+    std::cout << "real w: " << width << std::endl;
+    std::cout << "real h: " << height << std::endl;
     file->width = width;
     file->height = height;
     file->size = width * height * channels;
     file->channels = channels;
+    stbi_image_free(file->data);
     return 0;
 }
 

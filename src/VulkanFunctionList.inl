@@ -106,6 +106,7 @@ VK_DEVICE_FUNCTION( vkCreateDescriptorSetLayout )
 VK_DEVICE_FUNCTION( vkCreateDescriptorPool )
 VK_DEVICE_FUNCTION( vkAllocateDescriptorSets )
 VK_DEVICE_FUNCTION( vkUpdateDescriptorSets )
+VK_DEVICE_FUNCTION( vkBindImageMemory )
 
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

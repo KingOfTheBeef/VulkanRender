@@ -237,8 +237,8 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   layoutCreateInfo.pNext = nullptr;
   layoutCreateInfo.flags = 0;
-  layoutCreateInfo.setLayoutCount = 0;
-  layoutCreateInfo.pSetLayouts = nullptr;
+  layoutCreateInfo.setLayoutCount = this->descriptorSetCount;
+  layoutCreateInfo.pSetLayouts = this->descriptorSets;
   layoutCreateInfo.pushConstantRangeCount = 0;
   layoutCreateInfo.pPushConstantRanges = nullptr;
 
@@ -507,10 +507,11 @@ int Renderer::initCommandPool(DeviceInfo device) {
 
 int Renderer::initRenderer(DeviceInfo device, VkFormat format) {
   this->initRenderPass(device.logical, format);
-  this->initGraphicPipeline(device);
-  this->initCommandPool(device);
-  this->initVirtualFrames(device);
-  this->initBuffersAndMemory(device);
+    this->initCommandPool(device);
+    this->initVirtualFrames(device);
+    this->initBuffersAndMemory(device);
+    this->initTexture(device);
+    this->initGraphicPipeline(device);
   return 0;
 }
 
@@ -634,7 +635,7 @@ int Renderer::allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequi
     uint32_t memeoryIndex = -1;
     for (int i = 0; i < memoryProperties.memoryTypeCount;  i++) {
         if (memoryRequirements.memoryTypeBits & (1 << i)
-            && memoryProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags) {
+            && (memoryProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags) == memoryPropertyFlags) {
             memeoryIndex = i;
             break;
         }
@@ -656,6 +657,7 @@ int Renderer::allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequi
 int Renderer::allocateImageMemory(DeviceInfo device, VkImage image, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
     VkMemoryRequirements memoryRequirements;
     vkGetImageMemoryRequirements(device.logical, image, &memoryRequirements);
+    std::cout << "Mem req. size: " << memoryRequirements.size << std::endl;
     return this->allocateMemory(device, memoryRequirements, memoryPropertyFlags, memory);
 }
 
@@ -854,6 +856,43 @@ int Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet,
     writeDescriptorSet.pTexelBufferView = nullptr;
 
     vkUpdateDescriptorSets(device.logical, 1, &writeDescriptorSet, 0, nullptr);
+    return 0;
+}
+
+int Renderer::initTexture(DeviceInfo device) {
+
+    // Load texture
+    ImageFile imageFile;
+    FileReader::loadImage("img/intel-truck.png", &imageFile);
+
+    std::cout << imageFile.width << std::endl;
+    std::cout << imageFile.height << std::endl;
+
+    // Create image
+    VkImage image;
+    VkImageView imageView;
+    VkDeviceMemory memory;
+    createImage(device, imageFile.width, imageFile.height, &image);
+    allocateImageMemory(device, image, 0, &memory);
+    vkBindImageMemory(device.logical, image, memory, 0);
+    createImageView(device, image, &imageView);
+
+    // Update image with texture data
+    updateTexture(device, imageFile, image);
+
+    // Create Sampler
+    VkSampler sampler;
+    initSampler(device, &sampler);
+
+    // Create descriptor
+    VkDescriptorSetLayout layout;
+    VkDescriptorPool pool;
+    initDescriptorSetLayout(device, &layout);
+    initDescriptorPool(device, &pool);
+    allocateDescriptor(device, pool, &layout, &this->descriptorSets[0]);
+    updateDescriptor(device, this->descriptorSets[0], imageView, sampler);
+
+    FileReader::freeFileBin(&imageFile);
     return 0;
 }
 
