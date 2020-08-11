@@ -513,7 +513,7 @@ int Renderer::initRenderer(DeviceInfo device, VkFormat format) {
     this->initCommandPool(device);
     this->initVirtualFrames(device);
     this->initBuffersAndMemory(device);
-    this->initTexture(device);
+    this->initTextureResources(device, "img/texture.png", &this->texture);
     this->initGraphicPipeline(device);
   return 0;
 }
@@ -861,36 +861,43 @@ int Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet,
     return 0;
 }
 
-int Renderer::initTexture(DeviceInfo device) {
+int Renderer::initTextureResources(DeviceInfo device, const char *filename, Texture *texture) {
 
-    // Load texture
+    // Load texture file
     ImageFile imageFile;
-    FileReader::loadImage("img/texture.png", &imageFile);
+    FileReader::loadImage(filename, &imageFile);
 
-    // Create image
-    VkImage image;
-    VkImageView imageView;
-    VkDeviceMemory memory;
-    createImage(device, imageFile.width, imageFile.height, &image);
-    allocateImageMemory(device, image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory);
-    vkBindImageMemory(device.logical, image, memory, 0);
-    createImageView(device, image, &imageView);
+    // Initialise texture
+    initTexture(device, imageFile.width, imageFile.height, texture);
 
-    // Update image with texture data
-    updateTexture(device, imageFile, image);
+    // Update texture with texture data
+    updateTexture(device, imageFile, texture->image);
 
     // Create Sampler
     VkSampler sampler;
     initSampler(device, &sampler);
 
-    // Create descriptor
-    initDescriptorSetLayout(device, &this->descriptorSets[0].layout);
-    initDescriptorPool(device, &this->descriptorSets[0].pool);
-    allocateDescriptor(device, this->descriptorSets[0].pool, &this->descriptorSets[0].layout, &this->descriptorSets[0].handle);
-    updateDescriptor(device, this->descriptorSets[0].handle, imageView, sampler);
+    // Initialise new descriptor set
+    initDescriptorSet(device, &this->descriptorSets[0]);
+    // Update descriptor (with combined image sampler)
+    updateDescriptor(device, this->descriptorSets[0].handle, this->texture.imageView, sampler);
 
+    // Free loaded texture image file
     FileReader::freeImage(&imageFile);
     return 0;
 }
 
+int Renderer::initDescriptorSet(DeviceInfo device, DescriptorSet *descriptorSet) {
+    initDescriptorSetLayout(device, &descriptorSet->layout);
+    initDescriptorPool(device, &descriptorSet->pool);
+    allocateDescriptor(device, descriptorSet->pool, &descriptorSet->layout, &descriptorSet->handle);
+    return 0;
+}
 
+int Renderer::initTexture(DeviceInfo device, uint32_t width, uint32_t height, Texture *texture) {
+    createImage(device, width, height, &texture->image);
+    allocateImageMemory(device, texture->image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &texture->memory);
+    vkBindImageMemory(device.logical, texture->image, texture->memory, 0);
+    createImageView(device, texture->image, &texture->imageView);
+    return 0;
+}
