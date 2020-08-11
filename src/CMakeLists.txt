@@ -10,10 +10,17 @@ add_custom_command(
         ${CMAKE_CURRENT_SOURCE_DIR}/shaders
         ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 
+add_custom_target(copy_images)
+add_custom_command(
+        TARGET copy_images POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/img
+        ${CMAKE_CURRENT_BINARY_DIR}/img)
+
 add_executable(DynamicLink
         main.cpp
         VulkanInit.cpp
         Core.cpp WindowContext.h WindowContext.cpp Renderer.h Renderer.cpp FileReader.h FileReader.cpp Structures.h tempVertexData.h)
 
 target_link_libraries(DynamicLink ${SDL2} ${SDL2main})
-add_dependencies(DynamicLink copy_shader_modules)
+add_dependencies(DynamicLink copy_shader_modules copy_images)

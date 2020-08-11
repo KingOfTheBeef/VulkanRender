@@ -90,7 +90,6 @@ int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderMo
 
 void Renderer::clean(DeviceInfo device) {
   if (this->pipelineLayout != VK_NULL_HANDLE) {
-      std::cout << "Yee haw" << std::endl;
       vkDestroyPipelineLayout(device.logical, this->pipelineLayout, nullptr);
   }
 
@@ -521,11 +520,8 @@ int Renderer::initRenderer(DeviceInfo device, VkFormat format) {
 
 int Renderer::updateStagingBuffer(DeviceInfo device, const void *data, size_t size) {
   void *ptrBuffer;
-  std::cout << "Hello" << std::endl;
   vkMapMemory(device.logical, this->hostVisibleMemory, 0, size, 0, &ptrBuffer);
-    std::cout << "mate" << std::endl;
   memcpy(ptrBuffer, data, size);
-    std::cout << "matey" << std::endl;
 
   VkMappedMemoryRange memoryRange = {};
   memoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
@@ -664,7 +660,6 @@ int Renderer::allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequi
 int Renderer::allocateImageMemory(DeviceInfo device, VkImage image, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
     VkMemoryRequirements memoryRequirements;
     vkGetImageMemoryRequirements(device.logical, image, &memoryRequirements);
-    std::cout << "Mem req. size: " << memoryRequirements.size << std::endl;
     return this->allocateMemory(device, memoryRequirements, memoryPropertyFlags, memory);
 }
 
@@ -870,10 +865,7 @@ int Renderer::initTexture(DeviceInfo device) {
 
     // Load texture
     ImageFile imageFile;
-    FileReader::loadImage("img/intel-truck.png", &imageFile);
-
-    std::cout << imageFile.width << std::endl;
-    std::cout << imageFile.height << std::endl;
+    FileReader::loadImage("img/texture.png", &imageFile);
 
     // Create image
     VkImage image;

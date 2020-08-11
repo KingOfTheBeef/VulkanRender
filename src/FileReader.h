@@ -8,7 +8,7 @@
 #include "Structures.h"
 
 namespace FileReader {
-    int loadImage(const char *filename, ImageFile *file);
+    int loadImage(const char *filename, ImageFile *file, int componentCount = 4);
     int loadFileBin(const char *filename, BinaryFile *file);
     int freeImage(ImageFile *file);
     void freeFileBin(BinaryFile *file);
