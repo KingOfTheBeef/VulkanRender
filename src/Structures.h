@@ -8,10 +8,15 @@
 #define NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
-struct Texture {
-    VkImage image;
-    VkImageView imageView;
+struct Image {
+    VkImage handle;
+    VkImageView view;
     VkDeviceMemory memory;
+};
+
+struct CombinedImageSampler {
+    Image image;
+    VkSampler sampler;
 };
 
 struct DescriptorSet {

@@ -108,6 +108,10 @@ VK_DEVICE_FUNCTION( vkAllocateDescriptorSets )
 VK_DEVICE_FUNCTION( vkUpdateDescriptorSets )
 VK_DEVICE_FUNCTION( vkBindImageMemory )
 VK_DEVICE_FUNCTION( vkCmdBindDescriptorSets )
+VK_DEVICE_FUNCTION( vkDestroyDescriptorPool )
+VK_DEVICE_FUNCTION( vkDestroyDescriptorSetLayout )
+VK_DEVICE_FUNCTION( vkDestroySampler )
+VK_DEVICE_FUNCTION( vkDestroyImage )
 
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

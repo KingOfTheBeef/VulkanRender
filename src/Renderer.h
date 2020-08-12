@@ -15,7 +15,7 @@ public:
 
     int initRenderer(DeviceInfo device, VkFormat format);
 
-    int initTextureResources(DeviceInfo device, const char *filename, Texture *texture);
+    int initTextureResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture);
 
     int initDescriptorSet(DeviceInfo device, DescriptorSet *descriptorSet);
 
@@ -45,14 +45,14 @@ private:
     static const uint32_t   descriptorSetCount = 1;
     DescriptorSet           descriptorSets[descriptorSetCount];
 
-    Texture                 texture;
+    CombinedImageSampler    texture;
 
 private:
     int createImage(DeviceInfo device, uint32_t width, uint32_t height, VkImage *image);
 
     int createImageView(DeviceInfo device, VkImage image, VkImageView *imageView); // This function could also be used in core for swapchain images, (perhaps move swapchain into render class?)
 
-    int initTexture(DeviceInfo device, uint32_t width, uint32_t height, Texture *texture);
+    int initTexture(DeviceInfo device, uint32_t width, uint32_t height, Image *texture);
 
     int initRenderPass(VkDevice device, VkFormat format);
 

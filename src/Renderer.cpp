@@ -89,6 +89,16 @@ int Renderer::initShaderModule(VkDevice device, const char* filename, VkShaderMo
 }
 
 void Renderer::clean(DeviceInfo device) {
+
+  vkDestroyImageView(device.logical, this->texture.image.view, nullptr);
+  vkDestroyImage(device.logical, this->texture.image.handle, nullptr);
+  vkFreeMemory(device.logical, this->texture.image.memory, nullptr);
+
+  vkDestroySampler(device.logical, this->texture.sampler, nullptr);
+
+  vkDestroyDescriptorSetLayout(device.logical, this->descriptorSets[0].layout, nullptr);
+  vkDestroyDescriptorPool(device.logical, this->descriptorSets[0].pool, nullptr);
+
   if (this->pipelineLayout != VK_NULL_HANDLE) {
       vkDestroyPipelineLayout(device.logical, this->pipelineLayout, nullptr);
   }
@@ -861,26 +871,25 @@ int Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet,
     return 0;
 }
 
-int Renderer::initTextureResources(DeviceInfo device, const char *filename, Texture *texture) {
+int Renderer::initTextureResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture) {
 
     // Load texture file
     ImageFile imageFile;
     FileReader::loadImage(filename, &imageFile);
 
     // Initialise texture
-    initTexture(device, imageFile.width, imageFile.height, texture);
+    initTexture(device, imageFile.width, imageFile.height, &texture->image);
 
     // Update texture with texture data
-    updateTexture(device, imageFile, texture->image);
+    updateTexture(device, imageFile, texture->image.handle);
 
     // Create Sampler
-    VkSampler sampler;
-    initSampler(device, &sampler);
+    initSampler(device, &this->texture.sampler);
 
     // Initialise new descriptor set
     initDescriptorSet(device, &this->descriptorSets[0]);
     // Update descriptor (with combined image sampler)
-    updateDescriptor(device, this->descriptorSets[0].handle, this->texture.imageView, sampler);
+    updateDescriptor(device, this->descriptorSets[0].handle, this->texture.image.view, this->texture.sampler);
 
     // Free loaded texture image file
     FileReader::freeImage(&imageFile);
@@ -894,10 +903,10 @@ int Renderer::initDescriptorSet(DeviceInfo device, DescriptorSet *descriptorSet)
     return 0;
 }
 
-int Renderer::initTexture(DeviceInfo device, uint32_t width, uint32_t height, Texture *texture) {
-    createImage(device, width, height, &texture->image);
-    allocateImageMemory(device, texture->image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &texture->memory);
-    vkBindImageMemory(device.logical, texture->image, texture->memory, 0);
-    createImageView(device, texture->image, &texture->imageView);
+int Renderer::initTexture(DeviceInfo device, uint32_t width, uint32_t height, Image *texture) {
+    createImage(device, width, height, &texture->handle);
+    allocateImageMemory(device, texture->handle, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &texture->memory);
+    vkBindImageMemory(device.logical, texture->handle, texture->memory, 0);
+    createImageView(device, texture->handle, &texture->view);
     return 0;
 }
