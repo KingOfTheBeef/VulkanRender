@@ -523,7 +523,7 @@ int Renderer::initRenderer(DeviceInfo device, VkFormat format) {
     this->initCommandPool(device);
     this->initVirtualFrames(device);
     this->initBuffersAndMemory(device);
-    this->initTextureResources(device, "img/texture.png", &this->texture);
+    this->initResources(device, "img/texture.png", &this->texture);
     this->initGraphicPipeline(device);
   return 0;
 }
@@ -801,18 +801,24 @@ int Renderer::initSampler(DeviceInfo device, VkSampler *sampler) {
 
 int Renderer::initDescriptorSetLayout(DeviceInfo device, VkDescriptorSetLayout *descriptorSetLayout) {
 
-    VkDescriptorSetLayoutBinding bindings[1];
+    VkDescriptorSetLayoutBinding bindings[2];
     bindings[0].binding = 0;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     bindings[0].descriptorCount = 1;
     bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     bindings[0].pImmutableSamplers = nullptr;
 
+    bindings[1].binding = 1;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bindings[1].descriptorCount = 1;
+    bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings[1].pImmutableSamplers = nullptr;
+
     VkDescriptorSetLayoutCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
-    createInfo.bindingCount = 1;
+    createInfo.bindingCount = 2;
     createInfo.pBindings = bindings;
 
     vkCreateDescriptorSetLayout(device.logical, &createInfo, nullptr, descriptorSetLayout);
@@ -821,15 +827,18 @@ int Renderer::initDescriptorSetLayout(DeviceInfo device, VkDescriptorSetLayout *
 
 int Renderer::initDescriptorPool(DeviceInfo device, VkDescriptorPool *descriptorPool) {
 
-    VkDescriptorPoolSize descriptorPoolSize[1];
+    VkDescriptorPoolSize descriptorPoolSize[2];
     descriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorPoolSize[0].descriptorCount = 1;
+
+    descriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorPoolSize[1].descriptorCount = 1;
 
     VkDescriptorPoolCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     createInfo.pNext = nullptr;
-    createInfo.poolSizeCount = 1;
     createInfo.maxSets = 1;
+    createInfo.poolSizeCount = 2;
     createInfo.pPoolSizes = descriptorPoolSize;
 
     vkCreateDescriptorPool(device.logical, &createInfo, nullptr, descriptorPool);
@@ -871,8 +880,9 @@ int Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet,
     return 0;
 }
 
-int Renderer::initTextureResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture) {
+int Renderer::initResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture) {
 
+    // RESOURCES FOR COMBINED IMAGE SAMPLER
     // Load texture file
     ImageFile imageFile;
     FileReader::loadImage(filename, &imageFile);
@@ -885,6 +895,10 @@ int Renderer::initTextureResources(DeviceInfo device, const char *filename, Comb
 
     // Create Sampler
     initSampler(device, &this->texture.sampler);
+
+    // RESOURCES FOR VERTEX UNIFORM BUFFER
+
+
 
     // Initialise new descriptor set
     initDescriptorSet(device, &this->descriptorSets[0]);

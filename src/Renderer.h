@@ -15,7 +15,7 @@ public:
 
     int initRenderer(DeviceInfo device, VkFormat format);
 
-    int initTextureResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture);
+    int initResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture);
 
     int initDescriptorSet(DeviceInfo device, DescriptorSet *descriptorSet);
 
