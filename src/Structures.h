@@ -44,6 +44,7 @@ struct VirtualFrame {
     VkFence fence;
 };
 
+/*
 struct SwapchainInfo {
     VkSwapchainKHR swapchain;
     VkSurfaceFormatKHR imageFormat;
@@ -52,6 +53,7 @@ struct SwapchainInfo {
     VkImage *images;
     VkImageView *imageViews;
 };
+ */
 
 struct DeviceInfo {
     VkPhysicalDevice physical;

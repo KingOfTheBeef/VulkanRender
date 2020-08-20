@@ -8,12 +8,13 @@
 #include "VulkanInit.h"
 #include <vulkan/vulkan.h>
 #include "Structures.h"
+#include "Swapchain.h"
 
 class Renderer {
 public:
     Renderer();
 
-    int initRenderer(DeviceInfo device, VkFormat format);
+    int initRenderer(DeviceInfo device, VkSurfaceKHR surface);
 
     int initResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture);
 
@@ -25,11 +26,15 @@ public:
 
     int submitStagingBuffer(DeviceInfo device);
 
-    int draw(DeviceInfo device, SwapchainInfo swapchain);
+    int windowResize(DeviceInfo device, VkSurfaceKHR surface);
+
+    int draw(DeviceInfo device);
 
     void clean(DeviceInfo device);
 
 private:
+    Swapchain               swapchain;
+
     VkPipeline              pipeline;
     VkPipelineLayout        pipelineLayout;
     VkRenderPass            renderPass;

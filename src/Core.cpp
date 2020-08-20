@@ -77,9 +77,7 @@ void Core::init() {
   initSurface();
   initDevice();
 
-
-  initSwapchain();
-  renderer.initRenderer(this->deviceInfo, this->swapchainInfo.imageFormat.format);
+  renderer.initRenderer(this->deviceInfo, this->surface);
 }
 
 void Core::clean() {
@@ -87,14 +85,6 @@ void Core::clean() {
     vkDeviceWaitIdle(this->deviceInfo.logical);
 
     this->renderer.clean(this->deviceInfo);
-
-    for (int i = 0; i < this->swapchainInfo.imageCount; i++) {
-      vkDestroyImageView(deviceInfo.logical, this->swapchainInfo.imageViews[i], nullptr);
-    }
-    if (this->swapchainInfo.swapchain != VK_NULL_HANDLE) {
-      vkDestroySwapchainKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, nullptr);
-      delete(this->swapchainInfo.images);
-    }
 
     vkDestroyDevice(this->deviceInfo.logical, nullptr);
   }
@@ -118,7 +108,6 @@ Core::Core() : surface(VK_NULL_HANDLE) {
   this->vulkanLib = nullptr;
   this->instance = VK_NULL_HANDLE;
   this->deviceInfo = {VK_NULL_HANDLE, VK_NULL_HANDLE};
-  this->swapchainInfo = {VK_NULL_HANDLE, {VK_FORMAT_UNDEFINED, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}, {0, 0}, 0, nullptr};
 }
 
 
@@ -250,207 +239,15 @@ bool Core::checkPhysicalDeviceExtensions(VkPhysicalDevice physicalDevice, const 
   return true;
 }
 
-void Core::initSwapchain() {
-  VkPresentModeKHR presentMode;
-  initPresentMode(&presentMode);
-  VkSurfaceCapabilitiesKHR surfaceCapabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(this->deviceInfo.physical, this->surface, &surfaceCapabilities);
-  VkSurfaceFormatKHR surfaceFormat;
-  initSurfaceFormat(&surfaceFormat);
-
-  VkSwapchainKHR prevSwapchain = this->swapchainInfo.swapchain;
-  VkSwapchainCreateInfoKHR info = {};
-  info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  info.pNext = nullptr;
-  info.flags = 0;
-  info.surface = this->surface;
-  info.minImageCount = getImageCount(surfaceCapabilities);
-  info.imageFormat = surfaceFormat.format;
-  info.imageColorSpace = surfaceFormat.colorSpace;
-  initExtent2D(&this->swapchainInfo.extent, surfaceCapabilities);
-  info.imageExtent = this->swapchainInfo.extent;
-  info.imageArrayLayers = 1;
-  if (initImageUsageFlags(&info.imageUsage, surfaceCapabilities)) {
-    std::cout << "Failure to get usage flags" << std::endl;
-  }
-  info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  info.queueFamilyIndexCount = 0;
-  info.pQueueFamilyIndices = nullptr;
-  initPretransform(&info.preTransform, surfaceCapabilities);
-  info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-  info.presentMode = presentMode;
-  info.clipped = VK_TRUE;
-  info.oldSwapchain = this->swapchainInfo.swapchain;
-
-  if(vkCreateSwapchainKHR(this->deviceInfo.logical, &info, nullptr, &this->swapchainInfo.swapchain) != VK_SUCCESS) {
-    std::cout << "Error making swapchain" << std::endl;
-  }
-  this->swapchainInfo.imageFormat = surfaceFormat;
-
-  if (prevSwapchain != VK_NULL_HANDLE) {
-    vkDestroySwapchainKHR(this->deviceInfo.logical, prevSwapchain, nullptr);
-  }
-
-  initSwapchainImages();
-}
-
-// Function finds the extent of the images/surface we use
-void Core::initExtent2D(VkExtent2D *extent, VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
-  if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF) {
-    // TODO: Fix the use of 500, should be whatever the window dimensions are
-    extent->width = extent->height = 500;
-    if (extent-> width < surfaceCapabilities.minImageExtent.width) {
-      extent->width = surfaceCapabilities.minImageExtent.width;
-    } else if (extent->width > surfaceCapabilities.maxImageExtent.width) {
-      extent->width = surfaceCapabilities.maxImageExtent.width;
-    }
-    if (extent->height < surfaceCapabilities.minImageExtent.height) {
-      extent->height = surfaceCapabilities.minImageExtent.height;
-    } else if (extent->height > surfaceCapabilities.maxImageExtent.height) {
-      extent->height = surfaceCapabilities.maxImageExtent.height;
-    }
-  } else {
-    // In this case, we have no choice but must use the extent provided
-    *extent = surfaceCapabilities.currentExtent;
-  }
-}
-
-// Function finds a suitable present mode
-int Core::initPresentMode(VkPresentModeKHR *presentMode) {
-  uint32_t presentModeCount = 0;
-  VkPresentModeKHR presentModes[20];
-  vkGetPhysicalDeviceSurfacePresentModesKHR(this->deviceInfo.physical, this->surface, &presentModeCount, nullptr);
-  presentModeCount = presentModeCount<20?presentModeCount:20;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(this->deviceInfo.physical, this->surface, &presentModeCount, presentModes);
-
-  bool foundSuitablePresentMode = true;
-  for (uint32_t i = 0; i < presentModeCount; i++) {
-    // This is the most desirable present mode we want
-    if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
-      *presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-      foundSuitablePresentMode = false;
-      break;
-    // FIFO works too but is our second choice
-    } else if (presentModes[i] == VK_PRESENT_MODE_FIFO_KHR) {
-      *presentMode = VK_PRESENT_MODE_FIFO_KHR;
-      foundSuitablePresentMode = false;
-    }
-  }
-
-  return foundSuitablePresentMode;
-}
-
-// Function gets the number of images the swapchain will use.
-uint32_t Core::getImageCount(VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
-  return  surfaceCapabilities.minImageCount==surfaceCapabilities.maxImageCount
-          ?surfaceCapabilities.minImageCount + 1
-          :surfaceCapabilities.minImageCount;
-}
-
-// Function to get flags for how we will use the images, We are looking for transfer and color attachment (render)
-int Core::initImageUsageFlags(VkImageUsageFlags *usageFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
-  if (surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT
-      && surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
-    *usageFlags = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-  } else {
-    // Provided capabilities aren't sufficient
-    return 1;
-  }
-  return 0;
-}
-
-// Function to select surface format
-int Core::initSurfaceFormat(VkSurfaceFormatKHR *surfaceFormat) {
-  uint32_t surfaceFormatsCount = 0;
-  VkSurfaceFormatKHR surfaceFormats[100];
-  vkGetPhysicalDeviceSurfaceFormatsKHR(this->deviceInfo.physical, this->surface, &surfaceFormatsCount, nullptr);
-  surfaceFormatsCount = surfaceFormatsCount<100? surfaceFormatsCount:100;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(this->deviceInfo.physical, this->surface, &surfaceFormatsCount, surfaceFormats);
-
-  // Default to the first available format
-  *surfaceFormat = surfaceFormats[0];
-  for (uint32_t i = 0; i < surfaceFormatsCount; i++) {
-    // Check if we can get a desirable format
-    if (surfaceFormats[i].format == VK_FORMAT_R8G8B8A8_UNORM
-      // && surfaceFormats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR
-            ) {
-      *surfaceFormat = surfaceFormats[i];
-      break;
-    }
-  }
-  return 0;
-}
-
-// Select pretransform, this is useful when rendering to things like tablets which can change orientation
-int Core::initPretransform(VkSurfaceTransformFlagBitsKHR *transformFlags, VkSurfaceCapabilitiesKHR &surfaceCapabilities) {
-  *transformFlags =
-          surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
-          ?VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
-          :surfaceCapabilities.currentTransform;
-  return 0;
-}
-
 void Core::draw() {
-  switch (renderer.draw(this->deviceInfo, this->swapchainInfo)) {
+  switch (renderer.draw(this->deviceInfo)) {
     case VK_ERROR_OUT_OF_DATE_KHR:
       windowResize();
       break;
     default:
       break;
   }
-
-  /*
-  uint32_t imageIndex = 0;
-  vkAcquireNextImageKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, UINT64_MAX, this->imageAvailableSema, VK_NULL_HANDLE, &imageIndex);
-
-  VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-  VkSubmitInfo submitInfo = {};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.pNext = nullptr;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &this->renderer.getCmdBuffers()[imageIndex]; // &this->cmdBuffers[imageIndex];
-  submitInfo.signalSemaphoreCount = 1;
-  submitInfo.pSignalSemaphores = &this->imageFinishProcessingSema;
-  submitInfo.waitSemaphoreCount = 1;
-  submitInfo.pWaitSemaphores = &this->imageAvailableSema;
-  submitInfo.pWaitDstStageMask = &stageFlags;
-
-  vkQueueSubmit(this->deviceInfo.graphicQueue, 1, &submitInfo, VK_NULL_HANDLE);
-
-  VkResult result;
-  VkPresentInfoKHR presentInfo = {};
-  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  presentInfo.pNext = nullptr;
-  presentInfo.swapchainCount = 1;
-  presentInfo.pSwapchains = &this->swapchainInfo.swapchain;
-  presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = &this->imageFinishProcessingSema;
-  presentInfo.pImageIndices = &imageIndex;
-  presentInfo.pResults = &result;
-
-  vkQueuePresentKHR(this->deviceInfo.displayQueue, &presentInfo);
-
-  if (result != VK_SUCCESS) {
-    std::cout << "Something fishy" << std::endl;
-  }
-   */
 }
-
-/*
-int Core::initSemaphores() {
-  VkSemaphoreCreateInfo createInfo = {};
-  createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-  createInfo.pNext = nullptr;
-  createInfo.flags = 0;
-  if (vkCreateSemaphore(this->deviceInfo.logical, &createInfo, nullptr, &this->imageAvailableSema) != VK_SUCCESS) {
-    std::cout << "Failed to make semaphore imageAvailableSema" << std::endl;
-  }
-  if (vkCreateSemaphore(this->deviceInfo.logical, &createInfo, nullptr, &this->imageFinishProcessingSema) != VK_SUCCESS) {
-    std::cout << "Failed to make semaphore imageFinishProcessingSema" << std::endl;
-  }
-  return 0;
-}
- */
 
 // Function which sets the physical device and queue indexes
 int Core::selectPhysicalDevice() {
@@ -481,58 +278,10 @@ int Core::selectPhysicalDevice() {
   return 0;
 }
 
-int Core::initSwapchainImages() {
-  vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->swapchainInfo.imageCount, nullptr);
-  if (this->swapchainInfo.imageCount == 0) {
-    std::cout << "WARNING: Swapchain initialised with 0 images!" << std::endl;
-  }
-
-  this->swapchainInfo.images = new VkImage[this->swapchainInfo.imageCount];
-  this->swapchainInfo.imageViews = new VkImageView[this->swapchainInfo.imageCount];
-  vkGetSwapchainImagesKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, &this->swapchainInfo.imageCount, this->swapchainInfo.images);
-
-  for (int i = 0; i < this->swapchainInfo.imageCount; i++) {
-    // Create the image view for that image
-    VkImageViewCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.image = this->swapchainInfo.images[i];
-    createInfo.format = this->swapchainInfo.imageFormat.format;
-    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    createInfo.subresourceRange.layerCount = 1;
-    createInfo.subresourceRange.baseArrayLayer = 0;
-    createInfo.subresourceRange.levelCount = 1;
-    createInfo.subresourceRange.baseMipLevel = 0;
-
-    vkCreateImageView(this->deviceInfo.logical, &createInfo, nullptr, &this->swapchainInfo.imageViews[i]);
-  }
-
-  return 0;
-}
-
 void Core::windowResize() {
   this->windowContext->idleWhileMinimised();
   vkDeviceWaitIdle(this->deviceInfo.logical);
-
-  if (this->swapchainInfo.swapchain != VK_NULL_HANDLE) {
-    for (int i = 0; i < this->swapchainInfo.imageCount; i++) {
-      vkDestroyImageView(deviceInfo.logical, this->swapchainInfo.imageViews[i], nullptr);
-    }
-  }
-
-  if (this->swapchainInfo.swapchain != VK_NULL_HANDLE) {
-    vkDestroySwapchainKHR(this->deviceInfo.logical, this->swapchainInfo.swapchain, nullptr);
-    delete(this->swapchainInfo.images);
-    this->swapchainInfo.swapchain = VK_NULL_HANDLE;
-    this->swapchainInfo.imageCount = 0;
-  }
-  initSwapchain();
+  renderer.windowResize(this->deviceInfo, this->surface);
 }
 
 void Core::update() {
