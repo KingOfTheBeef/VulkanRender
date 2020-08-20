@@ -296,6 +296,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
   return 0;
 }
 
+/*
 int Renderer::initBuffersAndMemory(DeviceInfo device) {
   initBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000, &this->stagingBuffer);
   initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, Data::vertexDataSize, &this->vertexBuffer);
@@ -309,6 +310,7 @@ int Renderer::initBuffersAndMemory(DeviceInfo device) {
   updateStagingBuffer(device, Data::vertexData, Data::vertexDataSize);
   return submitStagingBuffer(device);
 }
+ */
 
 
 
@@ -522,7 +524,7 @@ int Renderer::initRenderer(DeviceInfo device, VkFormat format) {
   this->initRenderPass(device.logical, format);
     this->initCommandPool(device);
     this->initVirtualFrames(device);
-    this->initBuffersAndMemory(device);
+    // this->initBuffersAndMemory(device);
     this->initResources(device, "img/texture.png", &this->texture);
     this->initGraphicPipeline(device);
   return 0;
@@ -635,9 +637,17 @@ int Renderer::createImage(DeviceInfo device, uint32_t width, uint32_t height, Vk
     return vkCreateImage(device.logical, &imageCreateInfo, nullptr, image) != VK_SUCCESS;
 }
 
-int Renderer::allocateBufferMemory(DeviceInfo device, VkBuffer buffer, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
+int Renderer::allocateBufferMemory(DeviceInfo device, int bufferCount, VkBuffer *buffers, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory) {
     VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(device.logical, buffer, &memoryRequirements);
+    memoryRequirements.size = 0;
+    memoryRequirements.memoryTypeBits = -1;
+    memoryRequirements.alignment = 0;
+    for (int i = 0; i < bufferCount; i++) {
+        VkMemoryRequirements currentRequirement;
+        vkGetBufferMemoryRequirements(device.logical, buffers[i], &currentRequirement);
+        memoryRequirements.size += (currentRequirement.alignment - memoryRequirements.size % currentRequirement.alignment) % currentRequirement.alignment + currentRequirement.size;
+        memoryRequirements.memoryTypeBits &= currentRequirement.memoryTypeBits;
+    }
     return this->allocateMemory(device, memoryRequirements, memoryPropertyFlags, memory);
 }
 
@@ -882,6 +892,11 @@ int Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet,
 
 int Renderer::initResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture) {
 
+    // STAGING BUFFER
+    initBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000, &this->stagingBuffer);
+    allocateBufferMemory(device, 1, &this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &this->hostVisibleMemory);
+    vkBindBufferMemory(device.logical, this->stagingBuffer, this->hostVisibleMemory, 0);
+
     // RESOURCES FOR COMBINED IMAGE SAMPLER
     // Load texture file
     ImageFile imageFile;
@@ -890,20 +905,44 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     // Initialise texture
     initTexture(device, imageFile.width, imageFile.height, &texture->image);
 
-    // Update texture with texture data
-    updateTexture(device, imageFile, texture->image.handle);
-
     // Create Sampler
     initSampler(device, &this->texture.sampler);
 
-    // RESOURCES FOR VERTEX UNIFORM BUFFER
+    // VERTEX BUFFER
+    initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, Data::vertexDataSize, &this->vertexBuffer);
 
+    // UNIFORM BUFFER
+    VkBuffer uniformBuffer;
+    initBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 16 * sizeof(float), &uniformBuffer);
+
+    // ALLOCATE MEMORY FOR DEVICE LOCAL BUFFERS
+    VkBuffer buffers[2];
+    buffers[0] = this->vertexBuffer;
+    buffers[1] = uniformBuffer;
+    allocateBufferMemory(device, 2, buffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->deviceLocalMemory);
+
+    // BIND BUFFERS
+    VkMemoryRequirements requirements;
+    uint32_t offset = 0;
+    vkGetBufferMemoryRequirements(device.logical, this->vertexBuffer, &requirements);
+    vkBindBufferMemory(device.logical, this->vertexBuffer, this->deviceLocalMemory, 0);
+    offset += requirements.size;
+    vkGetBufferMemoryRequirements(device.logical, this->vertexBuffer, &requirements);
+    offset += ( requirements.alignment - offset % requirements.alignment) % requirements.alignment;
+    vkBindBufferMemory(device.logical, uniformBuffer, this->deviceLocalMemory, offset);
 
 
     // Initialise new descriptor set
     initDescriptorSet(device, &this->descriptorSets[0]);
     // Update descriptor (with combined image sampler)
     updateDescriptor(device, this->descriptorSets[0].handle, this->texture.image.view, this->texture.sampler);
+
+    // Update texture
+    updateTexture(device, imageFile, texture->image.handle);
+
+    // Update vertex buffer
+    updateStagingBuffer(device, Data::vertexData, Data::vertexDataSize);
+    submitStagingBuffer(device);
 
     // Free loaded texture image file
     FileReader::freeImage(&imageFile);

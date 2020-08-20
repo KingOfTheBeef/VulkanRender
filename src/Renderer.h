@@ -56,7 +56,7 @@ private:
 
     int initRenderPass(VkDevice device, VkFormat format);
 
-    int allocateBufferMemory(DeviceInfo device, VkBuffer buffer, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
+    int allocateBufferMemory(DeviceInfo device, int bufferCount, VkBuffer *buffers, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
 
     int allocateImageMemory(DeviceInfo device, VkImage image, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
 
@@ -72,7 +72,7 @@ private:
 
     int initCommandPool(DeviceInfo device);
 
-    int initBuffersAndMemory(DeviceInfo device);
+    // int initBuffersAndMemory(DeviceInfo device);
 
     int prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkExtent2D extent, VkImageView *imageView, VkImage image);
 
