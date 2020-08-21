@@ -20,7 +20,7 @@ add_custom_command(
 add_executable(DynamicLink
         main.cpp
         VulkanInit.cpp
-        Core.cpp WindowContext.h WindowContext.cpp Renderer.h Renderer.cpp FileReader.h FileReader.cpp Structures.h tempVertexData.h Swapchain.cpp Swapchain.h)
+        Core.cpp WindowContext.h WindowContext.cpp Renderer.h Renderer.cpp FileReader.h FileReader.cpp Structures.h tempVertexData.h Swapchain.cpp Swapchain.h GraphicMath.h)
 
 target_link_libraries(DynamicLink ${SDL2} ${SDL2main})
 add_dependencies(DynamicLink copy_shader_modules copy_images)
