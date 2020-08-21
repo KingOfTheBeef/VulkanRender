@@ -26,6 +26,8 @@ public:
 
     int submitStagingBuffer(DeviceInfo device);
 
+    int stagingBufferToUniformBuffer(DeviceInfo device, uint64_t size, uint64_t offset, VkBuffer destBuffer);
+
     int windowResize(DeviceInfo device, VkSurfaceKHR surface);
 
     int draw(DeviceInfo device);

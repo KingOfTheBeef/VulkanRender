@@ -6,6 +6,7 @@
 #include "Renderer.h"
 #include "FileReader.h"
 #include "tempVertexData.h"
+#include "GraphicMath.h"
 
 int Renderer::initRenderPass(VkDevice device, VkFormat format) {
     VkAttachmentDescription attachmentDescriptions[1];
@@ -969,6 +970,11 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     // Update texture
     updateTexture(device, imageFile, texture->image.handle);
 
+    // update uniform buffer
+    GMATH::mat4 orthoMat = GMATH::orthographicMatrix(100, -100, 100, -100, 0, 50);
+    updateStagingBuffer(device, &orthoMat, sizeof(orthoMat));
+    stagingBufferToUniformBuffer(device, sizeof(orthoMat), 0, uniformBuffer);
+
     // Update vertex buffer
     updateStagingBuffer(device, Data::vertexData, Data::vertexDataSize);
     submitStagingBuffer(device);
@@ -995,5 +1001,54 @@ int Renderer::initTexture(DeviceInfo device, uint32_t width, uint32_t height, Im
 
 int Renderer::windowResize(DeviceInfo device, VkSurfaceKHR surface) {
     this->swapchain.recreateSwapchain(device, surface);
+    return 0;
+}
+
+int Renderer::stagingBufferToUniformBuffer(DeviceInfo device, uint64_t size, uint64_t offset, VkBuffer destBuffer) {
+    this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
+    vkWaitForFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence);
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.pNext = nullptr;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    beginInfo.pInheritanceInfo = nullptr;
+
+    vkBeginCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, &beginInfo);
+
+    VkBufferCopy bufferCopy = {};
+    bufferCopy.size = size;
+    bufferCopy.srcOffset = offset;
+    bufferCopy.dstOffset = 0;
+    vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer, destBuffer,
+                    1, &bufferCopy);
+
+    VkBufferMemoryBarrier memoryBarrier = {};
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    memoryBarrier.pNext = nullptr;
+    memoryBarrier.size = VK_WHOLE_SIZE;
+    memoryBarrier.buffer = this->vertexBuffer;
+    memoryBarrier.offset = 0;
+    memoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    memoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    memoryBarrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+    vkCmdPipelineBarrier(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1, &memoryBarrier, 0, nullptr);
+
+    vkEndCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer);
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = nullptr;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &this->virtualFrames[this->currentVirtualFrame].cmdBuffer;
+    submitInfo.waitSemaphoreCount = 0;
+    submitInfo.pWaitSemaphores = nullptr;
+    submitInfo.signalSemaphoreCount = 0;
+    submitInfo.pSignalSemaphores = nullptr;
+    submitInfo.pWaitDstStageMask = nullptr;
+
+    vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[this->currentVirtualFrame].fence);
     return 0;
 }
