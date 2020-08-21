@@ -894,26 +894,42 @@ int Renderer::allocateDescriptor(DeviceInfo device, VkDescriptorPool descriptorP
 }
 
 int
-Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler) {
+Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, VkBuffer uniformBuffer) {
 
     VkDescriptorImageInfo imageInfo;
     imageInfo.sampler = sampler;
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageInfo.imageView = imageView;
 
-    VkWriteDescriptorSet writeDescriptorSet = {};
-    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet.pNext = nullptr;
-    writeDescriptorSet.descriptorCount = 1;
-    writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    writeDescriptorSet.dstSet = descriptorSet;
-    writeDescriptorSet.dstBinding = 0;
-    writeDescriptorSet.dstArrayElement = 0;
-    writeDescriptorSet.pBufferInfo = nullptr;
-    writeDescriptorSet.pImageInfo = &imageInfo;
-    writeDescriptorSet.pTexelBufferView = nullptr;
+    VkWriteDescriptorSet writeDescriptorSet[2];
+    writeDescriptorSet[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet[0].pNext = nullptr;
+    writeDescriptorSet[0].descriptorCount = 1;
+    writeDescriptorSet[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writeDescriptorSet[0].dstSet = descriptorSet;
+    writeDescriptorSet[0].dstBinding = 0;
+    writeDescriptorSet[0].dstArrayElement = 0;
+    writeDescriptorSet[0].pBufferInfo = nullptr;
+    writeDescriptorSet[0].pImageInfo = &imageInfo;
+    writeDescriptorSet[0].pTexelBufferView = nullptr;
 
-    vkUpdateDescriptorSets(device.logical, 1, &writeDescriptorSet, 0, nullptr);
+    VkDescriptorBufferInfo bufferInfo = {};
+    bufferInfo.buffer = uniformBuffer;
+    bufferInfo.offset = 0;
+    bufferInfo.range = VK_WHOLE_SIZE;
+
+    writeDescriptorSet[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet[1].pNext = nullptr;
+    writeDescriptorSet[1].descriptorCount = 1;
+    writeDescriptorSet[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    writeDescriptorSet[1].dstSet = descriptorSet;
+    writeDescriptorSet[1].dstBinding = 1;
+    writeDescriptorSet[1].dstArrayElement = 0;
+    writeDescriptorSet[1].pBufferInfo = &bufferInfo;
+    writeDescriptorSet[1].pImageInfo = nullptr;
+    writeDescriptorSet[1].pTexelBufferView = nullptr;
+
+    vkUpdateDescriptorSets(device.logical, 2, writeDescriptorSet, 0, nullptr);
     return 0;
 }
 
@@ -964,14 +980,15 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
 
     // Initialise new descriptor set
     initDescriptorSet(device, &this->descriptorSets[0]);
-    // Update descriptor (with combined image sampler)
-    updateDescriptor(device, this->descriptorSets[0].handle, this->texture.image.view, this->texture.sampler);
+    // Update descriptor
+    updateDescriptor(device, this->descriptorSets[0].handle, this->texture.image.view, this->texture.sampler, uniformBuffer);
 
     // Update texture
     updateTexture(device, imageFile, texture->image.handle);
 
     // update uniform buffer
-    GMATH::mat4 orthoMat = GMATH::orthographicMatrix(100, -100, 100, -100, 0, 50);
+    GMATH::mat4 orthoMat = GMATH::orthographicMatrix(-2, 2, -2, 2, 0.0, 1.0);
+    // GMATH::mat4 orthoMat = GMATH::identityMatrix();
     updateStagingBuffer(device, &orthoMat, sizeof(orthoMat));
     stagingBufferToUniformBuffer(device, sizeof(orthoMat), 0, uniformBuffer);
 
