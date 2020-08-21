@@ -7,6 +7,8 @@ All it does right now is draw a cube with a meme on it.
 Unify all staging buffer to destination operations\
 Have a structure to hold all drawable data elements\
 Look into aliasing within a single buffer, currently multiple buffers in a single memory object\
+Add data driven input, currently using tempVertexData.h\
+\
 LOTS OF REFACTORING TO DO :((
 
 
