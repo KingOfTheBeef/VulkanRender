@@ -22,12 +22,6 @@ public:
 
     int updateTexture(DeviceInfo device, ImageFile imageFile, VkImage image);
 
-    int updateStagingBuffer(DeviceInfo device, const void *data, size_t size);
-
-    int submitStagingBuffer(DeviceInfo device);
-
-    int stagingBufferToUniformBuffer(DeviceInfo device, uint64_t size, uint64_t offset, VkBuffer destBuffer);
-
     int windowResize(DeviceInfo device, VkSurfaceKHR surface);
 
     int draw(DeviceInfo device);
@@ -96,7 +90,9 @@ private:
 
     int updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, VkBuffer uniformBuffer);
 
-    int Renderer::submitStagingBufferToIndexBuffer(DeviceInfo device);
+    int updateStagingBuffer(DeviceInfo device, const void *data, size_t size);
+
+    int submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferAccessFlags, VkBuffer dstBuffer, uint64_t sizeOfData);
 };
 
 #endif //DYNAMICLINK_RENDERER_H

@@ -1,7 +1,8 @@
 # VulkanRender
 Repo for me learning how to do vulkan.
 
-All it does right now is draw a cube with a meme on it.
+All it does right now is draw a ~~cube~~ with a meme on it.\
+Well now its a square with a meme on it...
 
 # TODO
 Unify all staging buffer to destination operations\

@@ -289,8 +289,8 @@ void Core::update() {
   for (int i = 0; i < 8; i++) {
     Data::altVertexData[8 * i] += 0.1f;
   }
-  renderer.updateStagingBuffer(this->deviceInfo, Data::altVertexData, Data::vertexDataSize);
-  renderer.submitStagingBuffer(this->deviceInfo);
+  // renderer.updateStagingBuffer(this->deviceInfo, Data::altVertexData, Data::vertexDataSize);
+  // renderer.submitStagingBuffer(this->deviceInfo);
 }
 
 #undef graphicIndex

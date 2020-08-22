@@ -581,55 +581,6 @@ int Renderer::initBuffer(DeviceInfo device, VkBufferUsageFlags bufferUsageFlags,
     return 0;
 }
 
-int Renderer::submitStagingBuffer(DeviceInfo device) {
-    this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
-    vkWaitForFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence, VK_TRUE, UINT64_MAX);
-    vkResetFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence);
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.pNext = nullptr;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    beginInfo.pInheritanceInfo = nullptr;
-
-    vkBeginCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, &beginInfo);
-
-    VkBufferCopy bufferCopy = {};
-    bufferCopy.size = sizeof(Data::indexedVertexData);
-    bufferCopy.srcOffset = 0;
-    bufferCopy.dstOffset = 0;
-    vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer, this->vertexBuffer,
-                    1, &bufferCopy);
-
-    VkBufferMemoryBarrier memoryBarrier = {};
-    memoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-    memoryBarrier.pNext = nullptr;
-    memoryBarrier.size = VK_WHOLE_SIZE;
-    memoryBarrier.buffer = this->vertexBuffer;
-    memoryBarrier.offset = 0;
-    memoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    memoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    memoryBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-    vkCmdPipelineBarrier(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1, &memoryBarrier, 0, nullptr);
-
-    vkEndCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer);
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.pNext = nullptr;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &this->virtualFrames[this->currentVirtualFrame].cmdBuffer;
-    submitInfo.waitSemaphoreCount = 0;
-    submitInfo.pWaitSemaphores = nullptr;
-    submitInfo.signalSemaphoreCount = 0;
-    submitInfo.pSignalSemaphores = nullptr;
-    submitInfo.pWaitDstStageMask = nullptr;
-
-    vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[this->currentVirtualFrame].fence);
-    return 0;
-}
-
 Renderer::Renderer() {
     this->currentVirtualFrame = 0;
 }
@@ -1004,17 +955,17 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     GMATH::mat4 orthoMat = GMATH::orthographicMatrix(-30, 30, -30, 30, 0.0, 1.0);
     // GMATH::mat4 orthoMat = GMATH::identityMatrix();
     updateStagingBuffer(device, &orthoMat, sizeof(orthoMat));
-    stagingBufferToUniformBuffer(device, sizeof(orthoMat), 0, uniformBuffer);
+    submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, uniformBuffer, sizeof(orthoMat));
     vkDeviceWaitIdle(device.logical);
 
     // Update vertex buffer
     updateStagingBuffer(device, Data::indexedVertexData, sizeof(Data::indexedVertexData));
-    submitStagingBuffer(device);
+    submitStagingBuffer(device, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, this->vertexBuffer, sizeof(Data::indexedVertexData));
     vkDeviceWaitIdle(device.logical);
 
     // Update index buffer
     updateStagingBuffer(device, Data::indexData, sizeof(Data::indexData));
-    submitStagingBufferToIndexBuffer(device);
+    submitStagingBuffer(device, VK_ACCESS_INDEX_READ_BIT, this->indexBuffer, sizeof(Data::indexData));
     vkDeviceWaitIdle(device.logical);
 
 
@@ -1043,10 +994,11 @@ int Renderer::windowResize(DeviceInfo device, VkSurfaceKHR surface) {
     return 0;
 }
 
-int Renderer::stagingBufferToUniformBuffer(DeviceInfo device, uint64_t size, uint64_t offset, VkBuffer destBuffer) {
+int Renderer::submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferAccessFlags, VkBuffer dstBuffer, uint64_t sizeOfData) {
     this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
     vkWaitForFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence, VK_TRUE, UINT64_MAX);
     vkResetFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence);
+
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.pNext = nullptr;
@@ -1056,73 +1008,28 @@ int Renderer::stagingBufferToUniformBuffer(DeviceInfo device, uint64_t size, uin
     vkBeginCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, &beginInfo);
 
     VkBufferCopy bufferCopy = {};
-    bufferCopy.size = size;
-    bufferCopy.srcOffset = offset;
-    bufferCopy.dstOffset = 0;
-    vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer, destBuffer,
-                    1, &bufferCopy);
-
-    VkBufferMemoryBarrier memoryBarrier = {};
-    memoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-    memoryBarrier.pNext = nullptr;
-    memoryBarrier.size = VK_WHOLE_SIZE;
-    memoryBarrier.buffer = this->vertexBuffer;
-    memoryBarrier.offset = 0;
-    memoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    memoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    memoryBarrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-    vkCmdPipelineBarrier(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1, &memoryBarrier, 0, nullptr);
-
-    vkEndCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer);
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.pNext = nullptr;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &this->virtualFrames[this->currentVirtualFrame].cmdBuffer;
-    submitInfo.waitSemaphoreCount = 0;
-    submitInfo.pWaitSemaphores = nullptr;
-    submitInfo.signalSemaphoreCount = 0;
-    submitInfo.pSignalSemaphores = nullptr;
-    submitInfo.pWaitDstStageMask = nullptr;
-
-    vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[this->currentVirtualFrame].fence);
-    return 0;
-}
-
-int Renderer::submitStagingBufferToIndexBuffer(DeviceInfo device) {
-    this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
-    vkWaitForFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence, VK_TRUE, UINT64_MAX);
-    vkResetFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence);
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.pNext = nullptr;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    beginInfo.pInheritanceInfo = nullptr;
-
-    vkBeginCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, &beginInfo);
-
-    VkBufferCopy bufferCopy = {};
-    bufferCopy.size = sizeof(Data::indexData);
+    bufferCopy.size = sizeOfData;
     bufferCopy.srcOffset = 0;
     bufferCopy.dstOffset = 0;
-    vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer, this->indexBuffer,
+    vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer, dstBuffer,
                     1, &bufferCopy);
 
+    // Removed because code seems to work fine without it, besides its technically broken since the pipeline stage
+    // doesn't match with dstAccessMask
+    /*
     VkBufferMemoryBarrier memoryBarrier = {};
     memoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     memoryBarrier.pNext = nullptr;
     memoryBarrier.size = VK_WHOLE_SIZE;
-    memoryBarrier.buffer = this->indexBuffer;
+    memoryBarrier.buffer = dstBuffer;
     memoryBarrier.offset = 0;
     memoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     memoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    memoryBarrier.dstAccessMask = VK_ACCESS_INDEX_READ_BIT;
+    memoryBarrier.dstAccessMask = dstBufferAccessFlags;
     vkCmdPipelineBarrier(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1, &memoryBarrier, 0, nullptr);
+                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 1, &memoryBarrier, 0, nullptr);
+    */
 
     vkEndCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer);
 
