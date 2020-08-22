@@ -23,7 +23,7 @@ namespace GMATH {
         return matrix;
     }
 
-    // Orthographic matrix for 
+    // Orthographic matrix for Vulkan NDC
     static mat4 orthographicMatrix(float left, float right, float top, float bottom, float close, float distant) {
         mat4 matrix = {
                 2.0f / (right - left), 0.0f, 0.0f, 0.0f,

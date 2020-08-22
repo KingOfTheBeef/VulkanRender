@@ -157,7 +157,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
 
     VkVertexInputBindingDescription vertexInputBindingDescription[1];
     vertexInputBindingDescription[0].binding = 0;
-    vertexInputBindingDescription[0].stride = Data::stride;// sizeof(float) * 8; //Todo: hardcoding
+    vertexInputBindingDescription[0].stride = sizeof(float) * 6; // Data::stride;// sizeof(float) * 8; //Todo: hardcoding
     vertexInputBindingDescription[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
     VkVertexInputAttributeDescription vertexInputAttributeDescription[2];
@@ -169,7 +169,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
 
     // Color inputs
     vertexInputAttributeDescription[1].binding = 0;
-    vertexInputAttributeDescription[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    vertexInputAttributeDescription[1].format = VK_FORMAT_R32G32_SFLOAT;
     vertexInputAttributeDescription[1].location = 1;
     vertexInputAttributeDescription[1].offset = Data::colorOffset; // sizeof(float) * 4; //Todo: Fix this hardcoding
 
@@ -187,7 +187,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
     assemblyStateCreateInfo.pNext = nullptr;
     assemblyStateCreateInfo.flags = 0;
     assemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
-    assemblyStateCreateInfo.topology = Data::topology; // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    assemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; // Data::topology; // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
     viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -404,10 +404,14 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
     VkDeviceSize offset = 0;
     vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 0, 1, &this->vertexBuffer, &offset);
 
+    vkCmdBindIndexBuffer(virtualFrame->cmdBuffer, this->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
     vkCmdBindDescriptorSets(virtualFrame->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelineLayout, 0,
                             this->descriptorSetCount, &this->descriptorSets[0].handle, 0, nullptr);
 
-    vkCmdDraw(virtualFrame->cmdBuffer, Data::vertexCount, 1, 0, 0);
+    // Data::
+    // vkCmdDraw(virtualFrame->cmdBuffer, 6, 1, 0, 0);
+    vkCmdDrawIndexed(virtualFrame->cmdBuffer, 6, 1, 0, 0, 0);
 
     vkCmdEndRenderPass(virtualFrame->cmdBuffer);
 
@@ -590,7 +594,7 @@ int Renderer::submitStagingBuffer(DeviceInfo device) {
     vkBeginCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, &beginInfo);
 
     VkBufferCopy bufferCopy = {};
-    bufferCopy.size = Data::vertexDataSize;
+    bufferCopy.size = sizeof(Data::indexedVertexData);
     bufferCopy.srcOffset = 0;
     bufferCopy.dstOffset = 0;
     vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer, this->vertexBuffer,
@@ -953,8 +957,11 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     initSampler(device, &this->texture.sampler);
 
     // VERTEX BUFFER
-    initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, Data::vertexDataSize,
+    initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData),
                &this->vertexBuffer);
+
+    // INDEX BUFFER
+    initBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData), &this->indexBuffer);
 
     // UNIFORM BUFFER
     VkBuffer uniformBuffer;
@@ -962,10 +969,11 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
                &uniformBuffer);
 
     // ALLOCATE MEMORY FOR DEVICE LOCAL BUFFERS
-    VkBuffer buffers[2];
+    VkBuffer buffers[3];
     buffers[0] = this->vertexBuffer;
-    buffers[1] = uniformBuffer;
-    allocateBufferMemory(device, 2, buffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->deviceLocalMemory);
+    buffers[1] = this->indexBuffer;
+    buffers[2] = uniformBuffer;
+    allocateBufferMemory(device, 3, buffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->deviceLocalMemory);
 
     // BIND BUFFERS
     VkMemoryRequirements requirements;
@@ -973,7 +981,13 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     vkGetBufferMemoryRequirements(device.logical, this->vertexBuffer, &requirements);
     vkBindBufferMemory(device.logical, this->vertexBuffer, this->deviceLocalMemory, 0);
     offset += requirements.size;
-    vkGetBufferMemoryRequirements(device.logical, this->vertexBuffer, &requirements);
+
+    vkGetBufferMemoryRequirements(device.logical, this->indexBuffer, &requirements);
+    offset += (requirements.alignment - offset % requirements.alignment) % requirements.alignment;
+    vkBindBufferMemory(device.logical, this->indexBuffer, this->deviceLocalMemory, offset);
+    offset += requirements.size;
+
+    vkGetBufferMemoryRequirements(device.logical, uniformBuffer, &requirements);
     offset += (requirements.alignment - offset % requirements.alignment) % requirements.alignment;
     vkBindBufferMemory(device.logical, uniformBuffer, this->deviceLocalMemory, offset);
 
@@ -987,14 +1001,19 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     updateTexture(device, imageFile, texture->image.handle);
 
     // update uniform buffer
-    GMATH::mat4 orthoMat = GMATH::orthographicMatrix(-2, 2, -2, 2, 0.0, 1.0);
+    GMATH::mat4 orthoMat = GMATH::orthographicMatrix(-30, 30, -30, 30, 0.0, 1.0);
     // GMATH::mat4 orthoMat = GMATH::identityMatrix();
     updateStagingBuffer(device, &orthoMat, sizeof(orthoMat));
     stagingBufferToUniformBuffer(device, sizeof(orthoMat), 0, uniformBuffer);
 
     // Update vertex buffer
-    updateStagingBuffer(device, Data::vertexData, Data::vertexDataSize);
+    updateStagingBuffer(device, Data::indexedVertexData, sizeof(Data::indexedVertexData));
     submitStagingBuffer(device);
+
+    // Update index buffer
+    updateStagingBuffer(device, Data::indexData, sizeof(Data::indexData));
+    submitStagingBufferToIndexBuffer(device);
+
 
     // Free loaded texture image file
     FileReader::freeImage(&imageFile);
@@ -1052,6 +1071,55 @@ int Renderer::stagingBufferToUniformBuffer(DeviceInfo device, uint64_t size, uin
     memoryBarrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
     vkCmdPipelineBarrier(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1, &memoryBarrier, 0, nullptr);
+
+    vkEndCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer);
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = nullptr;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &this->virtualFrames[this->currentVirtualFrame].cmdBuffer;
+    submitInfo.waitSemaphoreCount = 0;
+    submitInfo.pWaitSemaphores = nullptr;
+    submitInfo.signalSemaphoreCount = 0;
+    submitInfo.pSignalSemaphores = nullptr;
+    submitInfo.pWaitDstStageMask = nullptr;
+
+    vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[this->currentVirtualFrame].fence);
+    return 0;
+}
+
+int Renderer::submitStagingBufferToIndexBuffer(DeviceInfo device) {
+    this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
+    vkWaitForFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence);
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.pNext = nullptr;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    beginInfo.pInheritanceInfo = nullptr;
+
+    vkBeginCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, &beginInfo);
+
+    VkBufferCopy bufferCopy = {};
+    bufferCopy.size = sizeof(Data::indexData);
+    bufferCopy.srcOffset = 0;
+    bufferCopy.dstOffset = 0;
+    vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer, this->indexBuffer,
+                    1, &bufferCopy);
+
+    VkBufferMemoryBarrier memoryBarrier = {};
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    memoryBarrier.pNext = nullptr;
+    memoryBarrier.size = VK_WHOLE_SIZE;
+    memoryBarrier.buffer = this->indexBuffer;
+    memoryBarrier.offset = 0;
+    memoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    memoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    memoryBarrier.dstAccessMask = VK_ACCESS_INDEX_READ_BIT;
+    vkCmdPipelineBarrier(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1, &memoryBarrier, 0, nullptr);
 
     vkEndCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer);
 

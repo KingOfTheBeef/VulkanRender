@@ -44,8 +44,11 @@ private:
     static const uint32_t   virtualFrameCount = 3;
     uint32_t                currentVirtualFrame;
     VirtualFrame            virtualFrames[virtualFrameCount];
+
     VkBuffer                vertexBuffer;
+    VkBuffer                indexBuffer;
     VkBuffer                stagingBuffer;
+
     VkDeviceMemory          hostVisibleMemory;
     VkDeviceMemory          deviceLocalMemory;
 
@@ -92,6 +95,8 @@ private:
     int allocateDescriptor(DeviceInfo device, VkDescriptorPool descriptorPool, VkDescriptorSetLayout *descriptorLayout, VkDescriptorSet *descriptorSet);
 
     int updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, VkBuffer uniformBuffer);
+
+    int Renderer::submitStagingBufferToIndexBuffer(DeviceInfo device);
 };
 
 #endif //DYNAMICLINK_RENDERER_H

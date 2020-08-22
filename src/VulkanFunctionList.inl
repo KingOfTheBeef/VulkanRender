@@ -112,6 +112,8 @@ VK_DEVICE_FUNCTION( vkDestroyDescriptorPool )
 VK_DEVICE_FUNCTION( vkDestroyDescriptorSetLayout )
 VK_DEVICE_FUNCTION( vkDestroySampler )
 VK_DEVICE_FUNCTION( vkDestroyImage )
+VK_DEVICE_FUNCTION( vkCmdBindIndexBuffer )
+VK_DEVICE_FUNCTION( vkCmdDrawIndexed )
 
 #undef VK_DEVICE_FUNCTION
 #endif // VK_DEVICE_FUNCTION

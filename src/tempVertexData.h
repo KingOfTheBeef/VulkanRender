@@ -8,6 +8,20 @@
 #include <vulkan/vulkan.h>
 
 namespace Data {
+
+    static float indexedVertexData[] = {
+            // Coords                       // UVs
+            -20.0f, -20.0f, 0.0f, 1.0f,     0.0f, 0.0f,     // top left
+            20.0f, -20.0f, 0.0f, 1.0f,      1.0f, 0.0f,     // top right
+            20.0f, 20.0f, 0.0f, 1.0f,       1.0f, 1.0f,     // bottom right
+            -20.0f, 20.0f, 0.0f, 1.0f,      0.0f, 1.0f      // bottom left
+    };
+
+    static uint16_t indexData[] = {
+        0, 1, 2, 0, 3, 2
+    };
+
+
     static float vertexData[] = {
             // Position                  // Color
             0.0f, 0.3f, 0.0f, 1.0f,     0.5f, 0.65f, 0.0f, 0.0f,

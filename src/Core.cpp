@@ -142,7 +142,8 @@ void Core::initDevice() {
 
   VkPhysicalDeviceProperties properties;
   vkGetPhysicalDeviceProperties(this->deviceInfo.physical, &properties);
-  std::cout << "Device Selected: " << properties.deviceName << std::endl;
+  std::cout << "Device Selected: " << properties.deviceName << std::endl
+   << "Max vertex input bindings: " << properties.limits.maxVertexInputBindings << std::endl;
   if (vkCreateDevice(this->deviceInfo.physical, &deviceInfo, nullptr, &this->deviceInfo.logical) != VK_SUCCESS) {
     std::cout << "Failed to create logical device" << std::endl;
   }
