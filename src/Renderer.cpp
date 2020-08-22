@@ -1005,14 +1005,17 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     // GMATH::mat4 orthoMat = GMATH::identityMatrix();
     updateStagingBuffer(device, &orthoMat, sizeof(orthoMat));
     stagingBufferToUniformBuffer(device, sizeof(orthoMat), 0, uniformBuffer);
+    vkDeviceWaitIdle(device.logical);
 
     // Update vertex buffer
     updateStagingBuffer(device, Data::indexedVertexData, sizeof(Data::indexedVertexData));
     submitStagingBuffer(device);
+    vkDeviceWaitIdle(device.logical);
 
     // Update index buffer
     updateStagingBuffer(device, Data::indexData, sizeof(Data::indexData));
     submitStagingBufferToIndexBuffer(device);
+    vkDeviceWaitIdle(device.logical);
 
 
     // Free loaded texture image file
