@@ -7,6 +7,8 @@
 #include "FileReader.h"
 #include "tempVertexData.h"
 #include "GraphicMath.h"
+#include "Buffer.h"
+#include "DeviceMemory.h"
 
 int Renderer::initRenderPass(VkDevice device, VkFormat format) {
     VkAttachmentDescription attachmentDescriptions[1];
@@ -907,6 +909,21 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     // Create Sampler
     initSampler(device, &this->texture.sampler);
 
+    Buffer buffers[3];
+
+    buffers[0]   = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData));
+    buffers[1]    = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData));
+    buffers[2]  = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
+
+    DeviceMemory memory = DeviceMemory::allocateBufferMemory(device, 3, buffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    VkBuffer uniformBuffer = buffers[2].getHandle();
+    this->vertexBuffer = buffers[0].getHandle();
+    this->indexBuffer = buffers[1].getHandle();
+
+    this->deviceLocalMemory = memory.getHandle();
+
+    /*
     // VERTEX BUFFER
     initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData),
                &this->vertexBuffer);
@@ -941,6 +958,7 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     vkGetBufferMemoryRequirements(device.logical, uniformBuffer, &requirements);
     offset += (requirements.alignment - offset % requirements.alignment) % requirements.alignment;
     vkBindBufferMemory(device.logical, uniformBuffer, this->deviceLocalMemory, offset);
+    */
 
 
     // Initialise new descriptor set
