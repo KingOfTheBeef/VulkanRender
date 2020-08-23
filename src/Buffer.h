@@ -13,6 +13,8 @@ class Buffer {
 public:
     static Buffer createBuffer(DeviceInfo device, VkBufferUsageFlags bufferUsageFlags, size_t size);
 
+    void destroy(DeviceInfo device);
+
     VkBuffer    getHandle()                         { return this->handle; };
     void        setMemoryOffset(uint32_t offset)    { this->memoryOffset = offset; }
     uint32_t    getMemoryOffset()                   { return this->memoryOffset; }

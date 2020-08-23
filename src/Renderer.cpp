@@ -116,11 +116,19 @@ void Renderer::clean(DeviceInfo device) {
         }
     }
 
-    vkDestroyBuffer(device.logical, this->stagingBuffer, nullptr);
-    vkDestroyBuffer(device.logical, this->vertexBuffer, nullptr);
+    this->stagingBuffer.destroy(device);
+    this->vertexBuffer.destroy(device);
+    this->indexBuffer.destroy(device);
+    this->uniformBuffer.destroy(device);
 
-    vkFreeMemory(device.logical, this->deviceLocalMemory, nullptr);
-    vkFreeMemory(device.logical, this->hostVisibleMemory, nullptr);
+    // vkDestroyBuffer(device.logical, this->stagingBuffer, nullptr);
+    // vkDestroyBuffer(device.logical, this->vertexBuffer, nullptr);
+
+    this->deviceLocalMemory.free(device);
+    this->hostVisibleMemory.free(device);
+
+    // vkFreeMemory(device.logical, this->deviceLocalMemory, nullptr);
+    // vkFreeMemory(device.logical, this->hostVisibleMemory, nullptr);
 
     vkDestroyCommandPool(device.logical, this->cmdPool, nullptr);
     vkDestroyRenderPass(device.logical, this->renderPass, nullptr);
@@ -404,9 +412,10 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
     vkCmdSetScissor(virtualFrame->cmdBuffer, 0, 1, &rect);
 
     VkDeviceSize offset = 0;
-    vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 0, 1, &this->vertexBuffer, &offset);
+    VkBuffer buffer = this->vertexBuffer.getHandle();
+    vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 0, 1, &buffer, &offset);
 
-    vkCmdBindIndexBuffer(virtualFrame->cmdBuffer, this->indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(virtualFrame->cmdBuffer, this->indexBuffer.getHandle(), 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdBindDescriptorSets(virtualFrame->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelineLayout, 0,
                             this->descriptorSetCount, &this->descriptorSets[0].handle, 0, nullptr);
@@ -553,7 +562,7 @@ int Renderer::initRenderer(DeviceInfo device, VkSurfaceKHR surface) {
 
 int Renderer::updateStagingBuffer(DeviceInfo device, const void *data, size_t size) {
     void *ptrBuffer;
-    vkMapMemory(device.logical, this->hostVisibleMemory, 0, size, 0, &ptrBuffer);
+    vkMapMemory(device.logical, this->hostVisibleMemory.getHandle(), 0, size, 0, &ptrBuffer);
     memcpy(ptrBuffer, data, size);
 
     VkMappedMemoryRange memoryRange = {};
@@ -561,10 +570,10 @@ int Renderer::updateStagingBuffer(DeviceInfo device, const void *data, size_t si
     memoryRange.pNext = nullptr;
     memoryRange.size = VK_WHOLE_SIZE;
     memoryRange.offset = 0;
-    memoryRange.memory = this->hostVisibleMemory;
+    memoryRange.memory = this->hostVisibleMemory.getHandle();
     vkFlushMappedMemoryRanges(device.logical, 1, &memoryRange);
 
-    vkUnmapMemory(device.logical, this->hostVisibleMemory);
+    vkUnmapMemory(device.logical, this->hostVisibleMemory.getHandle());
     return 0;
 }
 
@@ -734,7 +743,7 @@ int Renderer::updateTexture(DeviceInfo device, ImageFile imageFile, VkImage imag
     bufferImageCopy.imageOffset = {0, 0, 0};
     bufferImageCopy.imageExtent = {imageFile.width, imageFile.height, 1};
 
-    vkCmdCopyBufferToImage(virtualFrame.cmdBuffer, this->stagingBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+    vkCmdCopyBufferToImage(virtualFrame.cmdBuffer, this->stagingBuffer.getHandle(), image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
                            &bufferImageCopy);
 
     // Alter the previous image memory barrier to move to sample layout
@@ -851,7 +860,7 @@ int Renderer::allocateDescriptor(DeviceInfo device, VkDescriptorPool descriptorP
 }
 
 int
-Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, VkBuffer uniformBuffer) {
+Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, Buffer uniformBuffer) {
 
     VkDescriptorImageInfo imageInfo;
     imageInfo.sampler = sampler;
@@ -871,7 +880,7 @@ Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkI
     writeDescriptorSet[0].pTexelBufferView = nullptr;
 
     VkDescriptorBufferInfo bufferInfo = {};
-    bufferInfo.buffer = uniformBuffer;
+    bufferInfo.buffer = uniformBuffer.getHandle();
     bufferInfo.offset = 0;
     bufferInfo.range = VK_WHOLE_SIZE;
 
@@ -893,10 +902,13 @@ Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkI
 int Renderer::initResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture) {
 
     // STAGING BUFFER
-    initBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000, &this->stagingBuffer);
-    allocateBufferMemory(device, 1, &this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                         &this->hostVisibleMemory);
-    vkBindBufferMemory(device.logical, this->stagingBuffer, this->hostVisibleMemory, 0);
+    // initBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000, &this->stagingBuffer);
+    this->stagingBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
+    this->hostVisibleMemory = DeviceMemory::allocateBufferMemory(device, 1, &this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+    // allocateBufferMemory(device, 1, &this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+    //                     &this->hostVisibleMemory);
+    // vkBindBufferMemory(device.logical, this->stagingBuffer, this->hostVisibleMemory, 0);
 
     // RESOURCES FOR COMBINED IMAGE SAMPLER
     // Load texture file
@@ -911,54 +923,11 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
 
     Buffer buffers[3];
 
-    buffers[0]   = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData));
-    buffers[1]    = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData));
-    buffers[2]  = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
+    buffers[0] = this->vertexBuffer  = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData));
+    buffers[1] = this->indexBuffer   = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData));
+    buffers[2] = this->uniformBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
 
-    DeviceMemory memory = DeviceMemory::allocateBufferMemory(device, 3, buffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    VkBuffer uniformBuffer = buffers[2].getHandle();
-    this->vertexBuffer = buffers[0].getHandle();
-    this->indexBuffer = buffers[1].getHandle();
-
-    this->deviceLocalMemory = memory.getHandle();
-
-    /*
-    // VERTEX BUFFER
-    initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData),
-               &this->vertexBuffer);
-
-    // INDEX BUFFER
-    initBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData), &this->indexBuffer);
-
-    // UNIFORM BUFFER
-    VkBuffer uniformBuffer;
-    initBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 16 * sizeof(float),
-               &uniformBuffer);
-
-    // ALLOCATE MEMORY FOR DEVICE LOCAL BUFFERS
-    VkBuffer buffers[3];
-    buffers[0] = this->vertexBuffer;
-    buffers[1] = this->indexBuffer;
-    buffers[2] = uniformBuffer;
-    allocateBufferMemory(device, 3, buffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->deviceLocalMemory);
-
-    // BIND BUFFERS
-    VkMemoryRequirements requirements;
-    uint32_t offset = 0;
-    vkGetBufferMemoryRequirements(device.logical, this->vertexBuffer, &requirements);
-    vkBindBufferMemory(device.logical, this->vertexBuffer, this->deviceLocalMemory, 0);
-    offset += requirements.size;
-
-    vkGetBufferMemoryRequirements(device.logical, this->indexBuffer, &requirements);
-    offset += (requirements.alignment - offset % requirements.alignment) % requirements.alignment;
-    vkBindBufferMemory(device.logical, this->indexBuffer, this->deviceLocalMemory, offset);
-    offset += requirements.size;
-
-    vkGetBufferMemoryRequirements(device.logical, uniformBuffer, &requirements);
-    offset += (requirements.alignment - offset % requirements.alignment) % requirements.alignment;
-    vkBindBufferMemory(device.logical, uniformBuffer, this->deviceLocalMemory, offset);
-    */
+    this->deviceLocalMemory = DeviceMemory::allocateBufferMemory(device, 3, buffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 
     // Initialise new descriptor set
@@ -973,7 +942,7 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     GMATH::mat4 orthoMat = GMATH::orthographicMatrix(-30, 30, -30, 30, 0.0, 1.0);
     // GMATH::mat4 orthoMat = GMATH::identityMatrix();
     updateStagingBuffer(device, &orthoMat, sizeof(orthoMat));
-    submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, uniformBuffer, sizeof(orthoMat));
+    submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, this->uniformBuffer, sizeof(orthoMat));
     vkDeviceWaitIdle(device.logical);
 
     // Update vertex buffer
@@ -1012,7 +981,7 @@ int Renderer::windowResize(DeviceInfo device, VkSurfaceKHR surface) {
     return 0;
 }
 
-int Renderer::submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferAccessFlags, VkBuffer dstBuffer, uint64_t sizeOfData) {
+int Renderer::submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferAccessFlags, Buffer dstBuffer, uint64_t sizeOfData) {
     this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
     vkWaitForFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence, VK_TRUE, UINT64_MAX);
     vkResetFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence);
@@ -1029,7 +998,7 @@ int Renderer::submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferA
     bufferCopy.size = sizeOfData;
     bufferCopy.srcOffset = 0;
     bufferCopy.dstOffset = 0;
-    vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer, dstBuffer,
+    vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer.getHandle(), dstBuffer.getHandle(),
                     1, &bufferCopy);
 
     // Removed because code seems to work fine without it, besides its technically broken since the pipeline stage

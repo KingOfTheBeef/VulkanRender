@@ -9,6 +9,9 @@
 #include <vulkan/vulkan.h>
 #include "Structures.h"
 #include "Swapchain.h"
+#include "Buffer.h"
+#include "DeviceMemory.h"
+
 
 class Renderer {
 public:
@@ -39,12 +42,13 @@ private:
     uint32_t                currentVirtualFrame;
     VirtualFrame            virtualFrames[virtualFrameCount];
 
-    VkBuffer                vertexBuffer;
-    VkBuffer                indexBuffer;
-    VkBuffer                stagingBuffer;
+    Buffer                  vertexBuffer;
+    Buffer                  indexBuffer;
+    Buffer                  stagingBuffer;
+    Buffer                  uniformBuffer;
 
-    VkDeviceMemory          hostVisibleMemory;
-    VkDeviceMemory          deviceLocalMemory;
+    DeviceMemory            hostVisibleMemory;
+    DeviceMemory            deviceLocalMemory;
 
     static const uint32_t   descriptorSetCount = 1;
     DescriptorSet           descriptorSets[descriptorSetCount];
@@ -88,11 +92,11 @@ private:
 
     int allocateDescriptor(DeviceInfo device, VkDescriptorPool descriptorPool, VkDescriptorSetLayout *descriptorLayout, VkDescriptorSet *descriptorSet);
 
-    int updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, VkBuffer uniformBuffer);
+    int updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, Buffer uniformBuffer);
 
     int updateStagingBuffer(DeviceInfo device, const void *data, size_t size);
 
-    int submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferAccessFlags, VkBuffer dstBuffer, uint64_t sizeOfData);
+    int submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferAccessFlags, Buffer dstBuffer, uint64_t sizeOfData);
 };
 
 #endif //DYNAMICLINK_RENDERER_H

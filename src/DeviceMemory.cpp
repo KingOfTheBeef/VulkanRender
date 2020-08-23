@@ -75,3 +75,17 @@ int DeviceMemory::bindBuffers(DeviceInfo device, int bufferCount, Buffer *buffer
     }
     return 0;
 }
+
+void DeviceMemory::free(DeviceInfo device) {
+    vkFreeMemory(device.logical, this->handle, nullptr);
+    this->handle = VK_NULL_HANDLE;
+    this->size = 0;
+    this->properties = 0;
+    this->type = -1;
+}
+
+DeviceMemory::DeviceMemory() : handle(VK_NULL_HANDLE) {
+    this->size = 0;
+    this->properties = 0;
+    this->type = -1;
+}

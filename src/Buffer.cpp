@@ -24,3 +24,10 @@ Buffer Buffer::createBuffer(DeviceInfo device, VkBufferUsageFlags bufferUsageFla
 
     return thisBuffer;
 }
+
+void Buffer::destroy(DeviceInfo device) {
+    vkDestroyBuffer(device.logical, this->handle, nullptr);
+    this->handle = VK_NULL_HANDLE;
+    this->memoryOffset = 0;
+    this->dataSize = 0;
+}

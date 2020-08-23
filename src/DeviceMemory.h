@@ -15,6 +15,9 @@ public:
     static DeviceMemory allocateBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers,
                                              VkMemoryPropertyFlags memoryPropertyFlags);
 
+    DeviceMemory();
+    void free(DeviceInfo device);
+
     VkDeviceMemory getHandle() { return this->handle; }
 
 private:
