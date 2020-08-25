@@ -28,7 +28,7 @@ namespace GMATH {
                 1.0f, 0.0f, 0.0f, 0.0f,
                 0.0f, 1.0f, 0.0f, 0.0f,
                 0.0f, 0.0f, 1.0f, 0.0f,
-                5.0f, 0.0f, 0.0f, 1.0f
+                15.0f, -5.0f, 0.0f, 1.0f
         };
         return matrix;
     }
