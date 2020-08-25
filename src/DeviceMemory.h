@@ -10,8 +10,14 @@
 #include "Structures.h"
 #include "Buffer.h"
 
+class HostVisibleDeviceMemory;
+
 class DeviceMemory {
+private:
+    static void allocBuffMem(DeviceInfo device, int bufferCount, Buffer *buffers,
+                             VkMemoryPropertyFlags memoryPropertyFlags, DeviceMemory *deviceMemory);
 public:
+    static HostVisibleDeviceMemory allocateHostVisibleBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers);
     static DeviceMemory allocateBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers,
                                              VkMemoryPropertyFlags memoryPropertyFlags);
 
@@ -20,13 +26,13 @@ public:
 
     VkDeviceMemory getHandle() { return this->handle; }
 
-private:
-    int allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequirements,
+protected:
+    virtual int allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequirements,
                                      VkMemoryPropertyFlags memoryPropertyFlags);
 
     int bindBuffers(DeviceInfo device, int bufferCount, Buffer *buffers);
 
-private:
+protected:
     VkDeviceMemory          handle;
     VkDeviceSize            size;
     VkMemoryPropertyFlags   properties;
@@ -35,5 +41,18 @@ private:
 
 };
 
+class HostVisibleDeviceMemory : public DeviceMemory {
+public:
+    HostVisibleDeviceMemory();
+    void* getMappedMemory() { return this->mappedMemory; };
+    void setMappedMemory(DeviceInfo device);
+    void unmapMemory(DeviceInfo device);
+private:
+    int allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequirements,
+                       VkMemoryPropertyFlags memoryPropertyFlags) override;
+
+protected:
+    void                    *mappedMemory;
+};
 
 #endif //DYNAMICLINK_DEVICEMEMORY_H

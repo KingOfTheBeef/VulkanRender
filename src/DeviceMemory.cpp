@@ -89,3 +89,62 @@ DeviceMemory::DeviceMemory() : handle(VK_NULL_HANDLE) {
     this->properties = 0;
     this->type = -1;
 }
+
+HostVisibleDeviceMemory
+DeviceMemory::allocateHostVisibleBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers) {
+    HostVisibleDeviceMemory deviceMemory;
+    DeviceMemory::allocBuffMem(device, bufferCount, buffers, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &deviceMemory);
+    deviceMemory.setMappedMemory(device);
+    return deviceMemory;
+}
+
+void DeviceMemory::allocBuffMem(DeviceInfo device, int bufferCount, Buffer *buffers,
+                                VkMemoryPropertyFlags memoryPropertyFlags, DeviceMemory *deviceMemory) {
+    VkMemoryRequirements memoryRequirements;
+    memoryRequirements.size = 0;
+    memoryRequirements.memoryTypeBits = -1;
+    memoryRequirements.alignment = 0;
+    for (int i = 0; i < bufferCount; i++) {
+        VkMemoryRequirements currentRequirement;
+        vkGetBufferMemoryRequirements(device.logical, buffers[i].getHandle(), &currentRequirement);
+
+        // Add extra memory for the alignment (if needed)
+        memoryRequirements.size +=
+                (currentRequirement.alignment - memoryRequirements.size % currentRequirement.alignment) %
+                currentRequirement.alignment;
+
+        // Update buffers offset
+        buffers[i].setMemoryOffset(memoryRequirements.size);
+
+        memoryRequirements.size += + currentRequirement.size;
+        memoryRequirements.memoryTypeBits &= currentRequirement.memoryTypeBits;
+    }
+
+    deviceMemory->allocateMemory(device, memoryRequirements, memoryPropertyFlags);
+    deviceMemory->bindBuffers(device, bufferCount, buffers);
+}
+
+void HostVisibleDeviceMemory::setMappedMemory(DeviceInfo device) {
+    if (this->mappedMemory == nullptr) {
+        vkMapMemory(device.logical, this->handle, 0, VK_WHOLE_SIZE, 0, &this->mappedMemory);
+    }
+}
+
+void HostVisibleDeviceMemory::unmapMemory(DeviceInfo device) {
+    if (this->mappedMemory != nullptr) {
+        vkUnmapMemory(device.logical, this->handle);
+        this->mappedMemory = nullptr;
+    }
+}
+
+int HostVisibleDeviceMemory::allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequirements,
+                                            VkMemoryPropertyFlags memoryPropertyFlags) {
+    this->DeviceMemory::allocateMemory(device, memoryRequirements, memoryPropertyFlags);
+    this->setMappedMemory(device);
+    return 0;
+}
+
+HostVisibleDeviceMemory::HostVisibleDeviceMemory() {
+    this->DeviceMemory::DeviceMemory();
+    this->mappedMemory = nullptr;
+}

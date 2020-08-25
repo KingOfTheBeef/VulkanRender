@@ -47,7 +47,7 @@ private:
     Buffer                  stagingBuffer;
     Buffer                  uniformBuffer;
 
-    DeviceMemory            hostVisibleMemory;
+    HostVisibleDeviceMemory hostVisibleMemory;
     DeviceMemory            deviceLocalMemory;
 
     static const uint32_t   descriptorSetCount = 1;

@@ -555,8 +555,9 @@ int Renderer::initRenderer(DeviceInfo device, VkSurfaceKHR surface) {
 }
 
 int Renderer::updateStagingBuffer(DeviceInfo device, const void *data, size_t size) {
-    void *ptrBuffer;
-    vkMapMemory(device.logical, this->hostVisibleMemory.getHandle(), 0, size, 0, &ptrBuffer);
+    void *ptrBuffer = this->hostVisibleMemory.getMappedMemory();
+
+    // vkMapMemory(device.logical, this->hostVisibleMemory.getHandle(), 0, size, 0, &ptrBuffer);
     memcpy(ptrBuffer, data, size);
 
     VkMappedMemoryRange memoryRange = {};
@@ -566,8 +567,7 @@ int Renderer::updateStagingBuffer(DeviceInfo device, const void *data, size_t si
     memoryRange.offset = 0;
     memoryRange.memory = this->hostVisibleMemory.getHandle();
     vkFlushMappedMemoryRanges(device.logical, 1, &memoryRange);
-
-    vkUnmapMemory(device.logical, this->hostVisibleMemory.getHandle());
+    // vkUnmapMemory(device.logical, this->hostVisibleMemory.getHandle());
     return 0;
 }
 
@@ -937,9 +937,8 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     this->stagingBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
 
     // Memory objects
-    this->hostVisibleMemory = DeviceMemory::allocateBufferMemory(device, 1, &this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    this->hostVisibleMemory = DeviceMemory::allocateHostVisibleBufferMemory(device, 1, &this->stagingBuffer);
     this->deviceLocalMemory = DeviceMemory::allocateBufferMemory(device, 4, deviceLocalBuffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
 
     // Initialise new descriptor set
     initDescriptorSet(device, &this->descriptorSets[0]);
