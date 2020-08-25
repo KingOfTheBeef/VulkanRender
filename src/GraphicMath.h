@@ -23,6 +23,16 @@ namespace GMATH {
         return matrix;
     }
 
+    static mat4 translateMatrix() {
+        mat4 matrix = {
+                1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
+                5.0f, 0.0f, 0.0f, 1.0f
+        };
+        return matrix;
+    }
+
     // Orthographic matrix for Vulkan NDC
     static mat4 orthographicMatrix(float left, float right, float top, float bottom, float close, float distant) {
         mat4 matrix = {

@@ -416,7 +416,7 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
 
     // Data::
     // vkCmdDraw(virtualFrame->cmdBuffer, 6, 1, 0, 0);
-    vkCmdDrawIndexed(virtualFrame->cmdBuffer, 6, 1, 0, 0, 0);
+    vkCmdDrawIndexed(virtualFrame->cmdBuffer, 6, 2, 0, 0, 0);
 
     vkCmdEndRenderPass(virtualFrame->cmdBuffer);
 
@@ -874,11 +874,11 @@ Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkI
     writeDescriptorSet[0].pTexelBufferView = nullptr;
 
     VkDescriptorBufferInfo bufferInfo[2];
-    bufferInfo[1].buffer = uniformBuffer.getHandle();
+    bufferInfo[0].buffer = uniformBuffer.getHandle();
     bufferInfo[0].offset = 0;
     bufferInfo[0].range = VK_WHOLE_SIZE;
 
-    bufferInfo[0].buffer = model.getHandle();
+    bufferInfo[1].buffer = model.getHandle();
     bufferInfo[1].offset = 0;
     bufferInfo[1].range = VK_WHOLE_SIZE;
 
@@ -914,7 +914,7 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     deviceLocalBuffers[0] = this->vertexBuffer  = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData));
     deviceLocalBuffers[1] = this->indexBuffer   = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData));
     deviceLocalBuffers[2] = this->uniformBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
-    Buffer modelMatrix = deviceLocalBuffers[3] = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
+    Buffer modelMatrix = deviceLocalBuffers[3] = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16 * 2);
 
     this->stagingBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
 
@@ -937,9 +937,12 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, this->uniformBuffer, sizeof(orthoMat));
     vkDeviceWaitIdle(device.logical);
 
-    GMATH::mat4 idMat = GMATH::identityMatrix();
-    updateStagingBuffer(device, &idMat, sizeof(idMat));
-    submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, modelMatrix, sizeof(idMat));
+    GMATH::mat4 idMat[2];
+    idMat[0] = GMATH::translateMatrix();
+    idMat[1] = GMATH::identityMatrix();
+
+    updateStagingBuffer(device, idMat, sizeof(float) * 16 * 2);
+    submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, modelMatrix, sizeof(float) * 16 * 2);
     vkDeviceWaitIdle(device.logical);
 
     // Update vertex buffer
