@@ -121,14 +121,8 @@ void Renderer::clean(DeviceInfo device) {
     this->indexBuffer.destroy(device);
     this->uniformBuffer.destroy(device);
 
-    // vkDestroyBuffer(device.logical, this->stagingBuffer, nullptr);
-    // vkDestroyBuffer(device.logical, this->vertexBuffer, nullptr);
-
     this->deviceLocalMemory.free(device);
     this->hostVisibleMemory.free(device);
-
-    // vkFreeMemory(device.logical, this->deviceLocalMemory, nullptr);
-    // vkFreeMemory(device.logical, this->hostVisibleMemory, nullptr);
 
     vkDestroyCommandPool(device.logical, this->cmdPool, nullptr);
     vkDestroyRenderPass(device.logical, this->renderPass, nullptr);
@@ -811,7 +805,7 @@ int Renderer::initDescriptorSetLayout(DeviceInfo device, VkDescriptorSetLayout *
 
     bindings[1].binding = 1;
     bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bindings[1].descriptorCount = 1;
+    bindings[1].descriptorCount = 2;
     bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     bindings[1].pImmutableSamplers = nullptr;
 
@@ -833,7 +827,7 @@ int Renderer::initDescriptorPool(DeviceInfo device, VkDescriptorPool *descriptor
     descriptorPoolSize[0].descriptorCount = 1;
 
     descriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorPoolSize[1].descriptorCount = 1;
+    descriptorPoolSize[1].descriptorCount = 2;
 
     VkDescriptorPoolCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -860,7 +854,7 @@ int Renderer::allocateDescriptor(DeviceInfo device, VkDescriptorPool descriptorP
 }
 
 int
-Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, Buffer uniformBuffer) {
+Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, Buffer uniformBuffer, Buffer model) {
 
     VkDescriptorImageInfo imageInfo;
     imageInfo.sampler = sampler;
@@ -879,19 +873,23 @@ Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkI
     writeDescriptorSet[0].pImageInfo = &imageInfo;
     writeDescriptorSet[0].pTexelBufferView = nullptr;
 
-    VkDescriptorBufferInfo bufferInfo = {};
-    bufferInfo.buffer = uniformBuffer.getHandle();
-    bufferInfo.offset = 0;
-    bufferInfo.range = VK_WHOLE_SIZE;
+    VkDescriptorBufferInfo bufferInfo[2];
+    bufferInfo[1].buffer = uniformBuffer.getHandle();
+    bufferInfo[0].offset = 0;
+    bufferInfo[0].range = VK_WHOLE_SIZE;
+
+    bufferInfo[0].buffer = model.getHandle();
+    bufferInfo[1].offset = 0;
+    bufferInfo[1].range = VK_WHOLE_SIZE;
 
     writeDescriptorSet[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     writeDescriptorSet[1].pNext = nullptr;
-    writeDescriptorSet[1].descriptorCount = 1;
+    writeDescriptorSet[1].descriptorCount = 2;
     writeDescriptorSet[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     writeDescriptorSet[1].dstSet = descriptorSet;
     writeDescriptorSet[1].dstBinding = 1;
     writeDescriptorSet[1].dstArrayElement = 0;
-    writeDescriptorSet[1].pBufferInfo = &bufferInfo;
+    writeDescriptorSet[1].pBufferInfo = bufferInfo;
     writeDescriptorSet[1].pImageInfo = nullptr;
     writeDescriptorSet[1].pTexelBufferView = nullptr;
 
@@ -900,16 +898,6 @@ Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkI
 }
 
 int Renderer::initResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture) {
-
-    // STAGING BUFFER
-    // initBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000, &this->stagingBuffer);
-    this->stagingBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
-    this->hostVisibleMemory = DeviceMemory::allocateBufferMemory(device, 1, &this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-
-    // allocateBufferMemory(device, 1, &this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-    //                     &this->hostVisibleMemory);
-    // vkBindBufferMemory(device.logical, this->stagingBuffer, this->hostVisibleMemory, 0);
-
     // RESOURCES FOR COMBINED IMAGE SAMPLER
     // Load texture file
     ImageFile imageFile;
@@ -921,28 +909,37 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     // Create Sampler
     initSampler(device, &this->texture.sampler);
 
-    Buffer buffers[3];
+    // Buffers
+    Buffer deviceLocalBuffers[4];
+    deviceLocalBuffers[0] = this->vertexBuffer  = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData));
+    deviceLocalBuffers[1] = this->indexBuffer   = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData));
+    deviceLocalBuffers[2] = this->uniformBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
+    Buffer modelMatrix = deviceLocalBuffers[3] = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
 
-    buffers[0] = this->vertexBuffer  = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData));
-    buffers[1] = this->indexBuffer   = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData));
-    buffers[2] = this->uniformBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
+    this->stagingBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
 
-    this->deviceLocalMemory = DeviceMemory::allocateBufferMemory(device, 3, buffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    // Memory objects
+    this->hostVisibleMemory = DeviceMemory::allocateBufferMemory(device, 1, &this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    this->deviceLocalMemory = DeviceMemory::allocateBufferMemory(device, 4, deviceLocalBuffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 
     // Initialise new descriptor set
     initDescriptorSet(device, &this->descriptorSets[0]);
     // Update descriptor
-    updateDescriptor(device, this->descriptorSets[0].handle, this->texture.image.view, this->texture.sampler, uniformBuffer);
+    updateDescriptor(device, this->descriptorSets[0].handle, this->texture.image.view, this->texture.sampler, this->uniformBuffer, modelMatrix);
 
     // Update texture
     updateTexture(device, imageFile, texture->image.handle);
 
     // update uniform buffer
     GMATH::mat4 orthoMat = GMATH::orthographicMatrix(-30, 30, -30, 30, 0.0, 1.0);
-    // GMATH::mat4 orthoMat = GMATH::identityMatrix();
     updateStagingBuffer(device, &orthoMat, sizeof(orthoMat));
     submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, this->uniformBuffer, sizeof(orthoMat));
+    vkDeviceWaitIdle(device.logical);
+
+    GMATH::mat4 idMat = GMATH::identityMatrix();
+    updateStagingBuffer(device, &idMat, sizeof(idMat));
+    submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, modelMatrix, sizeof(idMat));
     vkDeviceWaitIdle(device.logical);
 
     // Update vertex buffer
@@ -1001,8 +998,7 @@ int Renderer::submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferA
     vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer.getHandle(), dstBuffer.getHandle(),
                     1, &bufferCopy);
 
-    // Removed because code seems to work fine without it, besides its technically broken since the pipeline stage
-    // doesn't match with dstAccessMask
+    // This is undefined behaviour... will need to fix!
     /*
     VkBufferMemoryBarrier memoryBarrier = {};
     memoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
