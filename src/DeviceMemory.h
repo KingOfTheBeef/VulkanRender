@@ -11,15 +11,18 @@
 #include "Buffer.h"
 
 class HostVisibleDeviceMemory;
+class DeviceMemory;
 
 class DeviceMemory {
 private:
-    static void allocBuffMem(DeviceInfo device, int bufferCount, Buffer *buffers,
-                             VkMemoryPropertyFlags memoryPropertyFlags, DeviceMemory *deviceMemory);
+    static void allocateBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers,
+                                     VkMemoryPropertyFlags memoryPropertyFlags, DeviceMemory *deviceMemory);
 public:
-    static HostVisibleDeviceMemory allocateHostVisibleBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers);
-    static DeviceMemory allocateBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers,
-                                             VkMemoryPropertyFlags memoryPropertyFlags);
+    // Create host visible memory
+    static HostVisibleDeviceMemory createHostVisibleMemory(DeviceInfo device, int bufferCount, Buffer *buffers);
+// Create generic memory
+    static DeviceMemory createDeviceMemory(DeviceInfo device, int bufferCount, Buffer *buffers,
+                                           VkMemoryPropertyFlags memoryPropertyFlags);
 
     DeviceMemory();
     void free(DeviceInfo device);
@@ -47,6 +50,7 @@ public:
     void* getMappedMemory() { return this->mappedMemory; };
     void setMappedMemory(DeviceInfo device);
     void unmapMemory(DeviceInfo device);
+    void free(DeviceInfo device);
 private:
     int allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequirements,
                        VkMemoryPropertyFlags memoryPropertyFlags) override;

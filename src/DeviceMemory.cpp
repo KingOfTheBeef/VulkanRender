@@ -5,10 +5,23 @@
 #include <iostream>
 #include "DeviceMemory.h"
 
-DeviceMemory DeviceMemory::allocateBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers,
-                                   VkMemoryPropertyFlags memoryPropertyFlags) {
+DeviceMemory DeviceMemory::createDeviceMemory(DeviceInfo device, int bufferCount, Buffer *buffers,
+                                              VkMemoryPropertyFlags memoryPropertyFlags) {
     DeviceMemory deviceMemory;
+    DeviceMemory::allocateBufferMemory(device, bufferCount, buffers, memoryPropertyFlags, &deviceMemory);
+    return deviceMemory;
+}
 
+HostVisibleDeviceMemory
+DeviceMemory::createHostVisibleMemory(DeviceInfo device, int bufferCount, Buffer *buffers) {
+    HostVisibleDeviceMemory deviceMemory;
+    DeviceMemory::allocateBufferMemory(device, bufferCount, buffers, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &deviceMemory);
+    deviceMemory.setMappedMemory(device);
+    return deviceMemory;
+}
+
+void DeviceMemory::allocateBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers,
+                                        VkMemoryPropertyFlags memoryPropertyFlags, DeviceMemory *deviceMemory) {
     VkMemoryRequirements memoryRequirements;
     memoryRequirements.size = 0;
     memoryRequirements.memoryTypeBits = -1;
@@ -29,11 +42,8 @@ DeviceMemory DeviceMemory::allocateBufferMemory(DeviceInfo device, int bufferCou
         memoryRequirements.memoryTypeBits &= currentRequirement.memoryTypeBits;
     }
 
-    deviceMemory.allocateMemory(device, memoryRequirements, memoryPropertyFlags);
-
-    deviceMemory.bindBuffers(device, bufferCount, buffers);
-
-    return deviceMemory;
+    deviceMemory->allocateMemory(device, memoryRequirements, memoryPropertyFlags);
+    deviceMemory->bindBuffers(device, bufferCount, buffers);
 }
 
 int DeviceMemory::allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequirements,
@@ -90,40 +100,6 @@ DeviceMemory::DeviceMemory() : handle(VK_NULL_HANDLE) {
     this->type = -1;
 }
 
-HostVisibleDeviceMemory
-DeviceMemory::allocateHostVisibleBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers) {
-    HostVisibleDeviceMemory deviceMemory;
-    DeviceMemory::allocBuffMem(device, bufferCount, buffers, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &deviceMemory);
-    deviceMemory.setMappedMemory(device);
-    return deviceMemory;
-}
-
-void DeviceMemory::allocBuffMem(DeviceInfo device, int bufferCount, Buffer *buffers,
-                                VkMemoryPropertyFlags memoryPropertyFlags, DeviceMemory *deviceMemory) {
-    VkMemoryRequirements memoryRequirements;
-    memoryRequirements.size = 0;
-    memoryRequirements.memoryTypeBits = -1;
-    memoryRequirements.alignment = 0;
-    for (int i = 0; i < bufferCount; i++) {
-        VkMemoryRequirements currentRequirement;
-        vkGetBufferMemoryRequirements(device.logical, buffers[i].getHandle(), &currentRequirement);
-
-        // Add extra memory for the alignment (if needed)
-        memoryRequirements.size +=
-                (currentRequirement.alignment - memoryRequirements.size % currentRequirement.alignment) %
-                currentRequirement.alignment;
-
-        // Update buffers offset
-        buffers[i].setMemoryOffset(memoryRequirements.size);
-
-        memoryRequirements.size += + currentRequirement.size;
-        memoryRequirements.memoryTypeBits &= currentRequirement.memoryTypeBits;
-    }
-
-    deviceMemory->allocateMemory(device, memoryRequirements, memoryPropertyFlags);
-    deviceMemory->bindBuffers(device, bufferCount, buffers);
-}
-
 void HostVisibleDeviceMemory::setMappedMemory(DeviceInfo device) {
     if (this->mappedMemory == nullptr) {
         vkMapMemory(device.logical, this->handle, 0, VK_WHOLE_SIZE, 0, &this->mappedMemory);
@@ -147,4 +123,9 @@ int HostVisibleDeviceMemory::allocateMemory(DeviceInfo device, VkMemoryRequireme
 HostVisibleDeviceMemory::HostVisibleDeviceMemory() {
     this->DeviceMemory::DeviceMemory();
     this->mappedMemory = nullptr;
+}
+
+void HostVisibleDeviceMemory::free(DeviceInfo device) {
+    this->unmapMemory(device);
+    DeviceMemory::free(device);
 }

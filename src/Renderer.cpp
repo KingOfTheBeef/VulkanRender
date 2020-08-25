@@ -937,8 +937,9 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     this->stagingBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
 
     // Memory objects
-    this->hostVisibleMemory = DeviceMemory::allocateHostVisibleBufferMemory(device, 1, &this->stagingBuffer);
-    this->deviceLocalMemory = DeviceMemory::allocateBufferMemory(device, 4, deviceLocalBuffers, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    this->hostVisibleMemory = DeviceMemory::createHostVisibleMemory(device, 1, &this->stagingBuffer);
+    this->deviceLocalMemory = DeviceMemory::createDeviceMemory(device, 4, deviceLocalBuffers,
+                                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // Initialise new descriptor set
     initDescriptorSet(device, &this->descriptorSets[0]);
