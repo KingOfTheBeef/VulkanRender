@@ -7,6 +7,7 @@
 #include "FileReader.h"
 #include "tempVertexData.h"
 #include "GraphicMath.h"
+#include "VulkanStructures.h"
 #include "Buffer.h"
 #include "DeviceMemory.h"
 
