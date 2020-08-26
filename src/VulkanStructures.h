@@ -220,6 +220,74 @@ namespace VKSTRUCT {
         info.subpass = 0;
         return info;
     }
+
+    inline static VkWriteDescriptorSet
+    writeDescriptorSet(VkDescriptorSet descriptorSet, VkDescriptorType descriptorType, uint32_t binding,
+                       uint32_t descriptorCount, VkDescriptorImageInfo *imageInfos, uint32_t startingArrayElement = 0) {
+        VkWriteDescriptorSet set;
+        set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        set.pNext = nullptr;
+        set.descriptorType = descriptorType;
+        set.dstSet = descriptorSet;
+        set.dstBinding = binding;
+        set.descriptorCount = descriptorCount;
+        set.dstArrayElement = startingArrayElement;
+        set.pImageInfo = imageInfos;
+        set.pBufferInfo = nullptr;
+        set.pTexelBufferView = nullptr;
+        return set;
+    }
+
+    inline static VkWriteDescriptorSet
+    writeDescriptorSet(VkDescriptorSet descriptorSet, VkDescriptorType descriptorType, uint32_t binding,
+                       uint32_t descriptorCount, VkDescriptorBufferInfo *bufferInfos,
+                       uint32_t startingArrayElement = 0) {
+        VkWriteDescriptorSet set;
+        set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        set.pNext = nullptr;
+        set.descriptorType = descriptorType;
+        set.dstSet = descriptorSet;
+        set.dstBinding = binding;
+        set.descriptorCount = descriptorCount;
+        set.dstArrayElement = startingArrayElement;
+        set.pBufferInfo = bufferInfos;
+        set.pImageInfo = nullptr;
+        set.pTexelBufferView = nullptr;
+        return set;
+    }
+
+    inline static VkWriteDescriptorSet
+    writeDescriptorSet(VkDescriptorSet descriptorSet, VkDescriptorType descriptorType, uint32_t binding,
+                       uint32_t descriptorCount, VkBufferView *bufferViews, uint32_t startingArrayElement = 0) {
+        VkWriteDescriptorSet set;
+        set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        set.pNext = nullptr;
+        set.descriptorType = descriptorType;
+        set.dstSet = descriptorSet;
+        set.dstBinding = binding;
+        set.descriptorCount = descriptorCount;
+        set.dstArrayElement = startingArrayElement;
+        set.pTexelBufferView = bufferViews;
+        set.pImageInfo = nullptr;
+        set.pBufferInfo = nullptr;
+        return set;
+    }
+
+    inline static VkDescriptorImageInfo descriptorImageInfo(VkSampler sampler, VkImageLayout imageLayout, VkImageView imageView) {
+        VkDescriptorImageInfo info;
+        info.sampler = sampler;
+        info.imageLayout = imageLayout;
+        info.imageView = imageView;
+        return info;
+    }
+
+    inline static VkDescriptorBufferInfo descriptorBufferInfo(VkBuffer buffer, uint32_t offset = 0, VkDeviceSize deviceSize = VK_WHOLE_SIZE) {
+        VkDescriptorBufferInfo info;
+        info.buffer = buffer;
+        info.offset = offset;
+        info.range = deviceSize;
+        return info;
+    }
 }
 
 #endif //DYNAMICLINK_VULKANSTRUCTURES_H

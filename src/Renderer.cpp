@@ -735,54 +735,15 @@ int Renderer::allocateDescriptor(DeviceInfo device, VkDescriptorPool descriptorP
 int
 Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, Buffer uniformBuffer, Buffer model) {
 
-    VkDescriptorImageInfo imageInfo;
-    imageInfo.sampler = sampler;
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = imageView;
+    VkDescriptorImageInfo imageInfo = VKSTRUCT::descriptorImageInfo(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, imageView);
+    VkDescriptorBufferInfo bufferInfos[2];
+    bufferInfos[0] = VKSTRUCT::descriptorBufferInfo(uniformBuffer.getHandle());
+    bufferInfos[1] = VKSTRUCT::descriptorBufferInfo(model.getHandle());
 
     VkWriteDescriptorSet writeDescriptorSet[3];
-    writeDescriptorSet[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet[0].pNext = nullptr;
-    writeDescriptorSet[0].descriptorCount = 1;
-    writeDescriptorSet[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    writeDescriptorSet[0].dstSet = descriptorSet;
-    writeDescriptorSet[0].dstBinding = 0;
-    writeDescriptorSet[0].dstArrayElement = 0;
-    writeDescriptorSet[0].pBufferInfo = nullptr;
-    writeDescriptorSet[0].pImageInfo = &imageInfo;
-    writeDescriptorSet[0].pTexelBufferView = nullptr;
-
-    VkDescriptorBufferInfo bufferInfo[1];
-    bufferInfo[0].buffer = uniformBuffer.getHandle();
-    bufferInfo[0].offset = 0;
-    bufferInfo[0].range = VK_WHOLE_SIZE;
-
-    writeDescriptorSet[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet[1].pNext = nullptr;
-    writeDescriptorSet[1].descriptorCount = 1;
-    writeDescriptorSet[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    writeDescriptorSet[1].dstSet = descriptorSet;
-    writeDescriptorSet[1].dstBinding = 1;
-    writeDescriptorSet[1].dstArrayElement = 0;
-    writeDescriptorSet[1].pBufferInfo = bufferInfo;
-    writeDescriptorSet[1].pImageInfo = nullptr;
-    writeDescriptorSet[1].pTexelBufferView = nullptr;
-
-    VkDescriptorBufferInfo bufferInfo2[1];
-    bufferInfo2[0].buffer = model.getHandle();
-    bufferInfo2[0].offset = 0;
-    bufferInfo2[0].range = VK_WHOLE_SIZE;
-
-    writeDescriptorSet[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeDescriptorSet[2].pNext = nullptr;
-    writeDescriptorSet[2].descriptorCount = 1;
-    writeDescriptorSet[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    writeDescriptorSet[2].dstSet = descriptorSet;
-    writeDescriptorSet[2].dstBinding = 2;
-    writeDescriptorSet[2].dstArrayElement = 0;
-    writeDescriptorSet[2].pBufferInfo = bufferInfo2;
-    writeDescriptorSet[2].pImageInfo = nullptr;
-    writeDescriptorSet[2].pTexelBufferView = nullptr;
+    writeDescriptorSet[0] = VKSTRUCT::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, 1, &imageInfo);
+    writeDescriptorSet[1] = VKSTRUCT::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1, &bufferInfos[0]);
+    writeDescriptorSet[2] = VKSTRUCT::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, 1, &bufferInfos[1]);
 
     vkUpdateDescriptorSets(device.logical, 3, writeDescriptorSet, 0, nullptr);
     return 0;
