@@ -443,6 +443,268 @@ namespace VKSTRUCT {
         info.pInheritanceInfo = inheritanceInfo;
         return info;
     }
+
+    inline struct VkImageSubresourceRange imageSubresourceRange(
+            uint32_t levelCount, uint32_t baseMipLevel, uint32_t layerCount, uint32_t baseArrayLayer,
+            VkImageAspectFlags aspectMask) {
+        VkImageSubresourceRange range = {};
+        range.levelCount = levelCount;
+        range.baseMipLevel = baseMipLevel;
+        range.layerCount = layerCount;
+        range.baseArrayLayer = baseArrayLayer;
+        range.aspectMask = aspectMask;
+        return range;
+    }
+
+    inline struct VkImageMemoryBarrier imageMemoryBarrier(VkImage image,
+            VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageSubresourceRange subresourceRange,
+            VkImageLayout oldLayout = VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout newLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            uint32_t srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED) {
+        VkImageMemoryBarrier barrier = {};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.pNext = nullptr;
+        barrier.image = image;
+        barrier.srcAccessMask = srcAccessMask;
+        barrier.dstAccessMask = dstAccessMask;
+        barrier.srcQueueFamilyIndex = srcQueueFamilyIndex;
+        barrier.dstQueueFamilyIndex = dstQueueFamilyIndex;
+        barrier.oldLayout = oldLayout;
+        barrier.newLayout = newLayout;
+        barrier.subresourceRange = subresourceRange;
+        return barrier;
+    }
+
+    inline static VkRenderPassBeginInfo renderPassBeginInfo(VkFramebuffer framebuffer, VkRenderPass renderPass, VkExtent2D extent,
+            uint32_t clearValueCount, VkClearValue *clearValues, VkOffset2D offset = {0, 0}) {
+        VkRenderPassBeginInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        info.pNext = nullptr;
+        info.framebuffer = framebuffer;
+        info.renderPass = renderPass;
+        info.renderArea.extent = extent;
+        info.renderArea.offset = offset;
+        info.clearValueCount = clearValueCount;
+        info.pClearValues = clearValues;
+        return info;
+    }
+
+    inline static VkViewport viewport(uint32_t width, uint32_t height, uint32_t x, uint32_t y, float minDepth, float maxDepth) {
+        VkViewport viewport = {};
+        viewport.width = width;
+        viewport.height = height;
+        viewport.x = x;
+        viewport.y = y;
+        viewport.minDepth = minDepth;
+        viewport.maxDepth = maxDepth;
+        return viewport;
+    }
+
+    inline static VkRect2D rect2D(VkOffset2D offset, VkExtent2D extent) {
+        VkRect2D rect = {};
+        rect.offset = offset;
+        rect.extent = extent;
+        return rect;
+    }
+
+    inline static VkRect2D rect2D(uint32_t x, uint32_t y, VkExtent2D extent) {
+        VkRect2D rect = {};
+        rect.offset.x = x;
+        rect.offset.y = y;
+        rect.extent = extent;
+        return rect;
+    }
+
+    inline static VkSubmitInfo submitInfo(uint32_t commandBufferCount, VkCommandBuffer *commandBuffers,
+            uint32_t signalSemaphoreCount, VkSemaphore *signalSemaphores,
+            uint32_t waitSemaphoreCount, VkSemaphore *waitSemaphores,
+            VkPipelineStageFlags *waitDstStageMask) {
+        VkSubmitInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        info.pNext = nullptr;
+        info.commandBufferCount = commandBufferCount;
+        info.pCommandBuffers = commandBuffers; // &this->cmdBuffers[imageIndex];
+        info.signalSemaphoreCount = signalSemaphoreCount;
+        info.pSignalSemaphores = signalSemaphores;
+        info.waitSemaphoreCount = waitSemaphoreCount;
+        info.pWaitSemaphores = waitSemaphores;
+        info.pWaitDstStageMask = waitDstStageMask;
+        return info;
+    }
+
+    inline static VkPresentInfoKHR presentInfoKhr(uint32_t swapchainCount, VkSwapchainKHR *swapchains, const uint32_t *imageIndices,
+            uint32_t waitSemaphoreCount, VkSemaphore *waitSemaphores) {
+        VkPresentInfoKHR info = {};
+        info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        info.pNext = nullptr;
+        info.swapchainCount = swapchainCount;
+        info.pSwapchains = swapchains;
+        info.waitSemaphoreCount = waitSemaphoreCount;
+        info.pWaitSemaphores = waitSemaphores;
+        info.pImageIndices = imageIndices;
+        info.pResults = nullptr;
+        return info;
+    }
+
+    inline static VkCommandBufferAllocateInfo commandBufferAllocateInfo(uint32_t commandBufferCount, VkCommandPool commandPool, VkCommandBufferLevel commandBufferLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
+        VkCommandBufferAllocateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        info.pNext = nullptr;
+        info.commandBufferCount = commandBufferCount;
+        info.commandPool = commandPool;
+        info.level = commandBufferLevel;
+        return info;
+    }
+
+    inline static VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0) {
+        VkSemaphoreCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = flags;
+        return info;
+    }
+
+    inline static VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0) {
+        VkFenceCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = flags;
+        return info;
+    }
+
+    inline static VkCommandPoolCreateInfo commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0) {
+        VkCommandPoolCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = flags;
+        info.queueFamilyIndex = queueFamilyIndex;
+        return info;
+    }
+
+    inline static VkMappedMemoryRange mappedMemoryRange(VkDeviceMemory memory, VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0) {
+        VkMappedMemoryRange range = {};
+        range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+        range.pNext = nullptr;
+        range.size = size;
+        range.offset = offset;
+        range.memory = memory;
+        return range;
+    }
+
+    inline static VkBufferCreateInfo bufferCreateInfo(VkDeviceSize size, VkBufferUsageFlags usageFlags, VkBufferCreateFlags flags = 0) {
+        VkBufferCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = flags;
+        info.size = size;
+        info.usage = usageFlags;
+
+        // Only used when we have concurrent sharing mode
+        info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        info.queueFamilyIndexCount = 0;
+        info.pQueueFamilyIndices = nullptr;
+        return info;
+    }
+
+    inline static VkImageCreateInfo imageCreateInfo(uint32_t width, uint32_t height) {
+        VkImageCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = 0;
+        info.imageType = VK_IMAGE_TYPE_2D;
+        info.format = VK_FORMAT_R8G8B8A8_UNORM; //Todo: Fix format hardcode
+        info.extent.width = width;
+        info.extent.height = height;
+        info.extent.depth = 1;
+        info.arrayLayers = 1;
+        info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        info.mipLevels = 1;
+        info.samples = VK_SAMPLE_COUNT_1_BIT;
+        info.tiling = VK_IMAGE_TILING_OPTIMAL;
+        info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+
+        info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        info.queueFamilyIndexCount = 0;
+        info.pQueueFamilyIndices = nullptr;
+        return info;
+    }
+
+    inline static VkMemoryAllocateInfo memoryAllocateInfo(VkDeviceSize allocationSize, uint32_t memoryTypeIndex) {
+        VkMemoryAllocateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        info.pNext = nullptr;
+        info.allocationSize = allocationSize;
+        info.memoryTypeIndex = memoryTypeIndex;
+        return info;
+    }
+
+    inline static VkImageViewCreateInfo imageViewCreateInfo(VkImage image) {
+        VkImageViewCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = 0;
+        info.image = image;
+        info.format = VK_FORMAT_R8G8B8A8_UNORM; //Todo: Fix format hardcode
+        info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        info.subresourceRange.layerCount = 1;
+        info.subresourceRange.baseArrayLayer = 0;
+        info.subresourceRange.levelCount = 1;
+        info.subresourceRange.baseMipLevel = 0;
+        return info;
+    }
+
+    inline static VkBufferImageCopy bufferImageCopy(VkExtent3D imageExtent) {
+        VkBufferImageCopy copy = {};
+        copy.bufferOffset = 0;
+        copy.bufferImageHeight = 0;
+        copy.bufferRowLength = 0;
+        copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copy.imageSubresource.layerCount = 1;
+        copy.imageSubresource.baseArrayLayer = 0;
+        copy.imageSubresource.mipLevel = 0;
+        copy.imageOffset = {0, 0, 0};
+        copy.imageExtent = imageExtent;
+        return copy;
+    }
+
+    inline static VkDescriptorPoolSize descriptorPoolSize(VkDescriptorType type, uint32_t count) {
+        VkDescriptorPoolSize size;
+        size.type = type;
+        size.descriptorCount = count;
+        return size;
+    }
+
+    inline static VkDescriptorPoolCreateInfo descriptorPoolCreateInfo(uint32_t maxSets, uint32_t poolSizeCount, VkDescriptorPoolSize *poolSizes) {
+        VkDescriptorPoolCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        info.pNext = nullptr;
+        info.maxSets = maxSets;
+        info.poolSizeCount = poolSizeCount;
+        info.pPoolSizes = poolSizes;
+        return info;
+    }
+
+    inline static VkDescriptorSetAllocateInfo descriptorSetAllocateInfo(VkDescriptorPool descriptorPool, uint32_t setCount, const VkDescriptorSetLayout *setLayouts) {
+        VkDescriptorSetAllocateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        info.pNext = nullptr;
+        info.descriptorPool = descriptorPool;
+        info.descriptorSetCount = setCount;
+        info.pSetLayouts = setLayouts;
+        return info;
+    }
+
+    inline static VkBufferCopy bufferCopy(VkDeviceSize size, VkDeviceSize srcOffset = 0, VkDeviceSize dstOffset = 0) {
+        VkBufferCopy copy = {};
+        copy.size = size;
+        copy.srcOffset = srcOffset;
+        copy.dstOffset = dstOffset;
+        return copy;
+    }
 }
 
 #endif //DYNAMICLINK_VULKANSTRUCTURES_H

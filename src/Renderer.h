@@ -64,13 +64,9 @@ private:
 
     int initRenderPass(VkDevice device, VkFormat format);
 
-    int allocateBufferMemory(DeviceInfo device, int bufferCount, VkBuffer *buffers, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
-
     int allocateImageMemory(DeviceInfo device, VkImage image, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
 
     int allocateMemory(DeviceInfo device, VkMemoryRequirements memoryRequirements, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceMemory *memory);
-
-    int initBuffer(DeviceInfo device, VkBufferUsageFlags bufferUsageFlags, size_t size, VkBuffer *buffer);
 
     int initShaderModule(VkDevice device, const char *filename, VkShaderModule *shaderModule);
 
@@ -79,8 +75,6 @@ private:
     int initVirtualFrames(DeviceInfo device);
 
     int initCommandPool(DeviceInfo device);
-
-    // int initBuffersAndMemory(DeviceInfo device);
 
     int prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkExtent2D extent, VkImageView *imageView, VkImage image);
 
