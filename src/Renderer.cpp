@@ -12,61 +12,20 @@
 #include "DeviceMemory.h"
 
 int Renderer::initRenderPass(VkDevice device, VkFormat format) {
-    VkAttachmentDescription attachmentDescriptions[1];
-    attachmentDescriptions[0].format = format;
-    attachmentDescriptions[0].flags = 0;
-    attachmentDescriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    attachmentDescriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    attachmentDescriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachmentDescriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    attachmentDescriptions[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachmentDescriptions[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachmentDescriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
+    VkAttachmentDescription attachmentDescriptions = VKSTRUCT::attachmentDescription(format);
+    VkAttachmentReference colorAttachmentReferences = VKSTRUCT::attachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkSubpassDescription subpassDescriptions = VKSTRUCT::subpassDescription(0, nullptr, 1, &colorAttachmentReferences);
 
-    VkAttachmentReference colorAttachmentReferences[1];
-    colorAttachmentReferences[0].attachment = 0;
-    colorAttachmentReferences[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkSubpassDependency subpassDependencies[] = {
+            VKSTRUCT::subpassDependency(VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                                        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_MEMORY_READ_BIT,
+                                        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_DEPENDENCY_BY_REGION_BIT),
+            VKSTRUCT::subpassDependency(0, VK_SUBPASS_EXTERNAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                        VK_ACCESS_MEMORY_READ_BIT, VK_DEPENDENCY_BY_REGION_BIT)
+    };
 
-    VkSubpassDescription subpassDescriptions[1];
-    subpassDescriptions[0].flags = 0;
-    subpassDescriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpassDescriptions[0].inputAttachmentCount = 0;
-    subpassDescriptions[0].pInputAttachments = nullptr;
-    subpassDescriptions[0].colorAttachmentCount = 1;
-    subpassDescriptions[0].pColorAttachments = colorAttachmentReferences;
-    subpassDescriptions[0].pResolveAttachments = nullptr;
-    subpassDescriptions[0].pDepthStencilAttachment = nullptr;
-    subpassDescriptions[0].preserveAttachmentCount = 0;
-    subpassDescriptions[0].pPreserveAttachments = nullptr;
-
-    VkSubpassDependency subpassDependencies[2];
-    subpassDependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-    subpassDependencies[0].dstSubpass = 0;
-    subpassDependencies[0].srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-    subpassDependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    subpassDependencies[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    subpassDependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    subpassDependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    subpassDependencies[1].srcSubpass = 0;
-    subpassDependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-    subpassDependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    subpassDependencies[1].dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-    subpassDependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    subpassDependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    subpassDependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-    VkRenderPassCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    createInfo.flags = 0;
-    createInfo.pNext = nullptr;
-    createInfo.attachmentCount = 1;
-    createInfo.pAttachments = attachmentDescriptions;
-    createInfo.dependencyCount = 2;
-    createInfo.pDependencies = subpassDependencies;
-    createInfo.subpassCount = 1;
-    createInfo.pSubpasses = subpassDescriptions;
-
+    VkRenderPassCreateInfo createInfo = VKSTRUCT::renderPassCreateInfo(1, &attachmentDescriptions, 2, subpassDependencies, 1, &subpassDescriptions);
     if (vkCreateRenderPass(device, &createInfo, nullptr, &this->renderPass) != VK_SUCCESS) {
         std::cout << "Failed to create render pass" << std::endl;
         return -1;
@@ -79,14 +38,7 @@ int Renderer::initShaderModule(VkDevice device, const char *filename, VkShaderMo
     if (FileReader::loadFileBin(filename, &prog)) {
         std::cout << "Unable to open file " << filename << std::endl;
     }
-
-    VkShaderModuleCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.codeSize = prog.size;
-    createInfo.pCode = reinterpret_cast<uint32_t *>(prog.data);
-
+    VkShaderModuleCreateInfo createInfo = VKSTRUCT::shaderModuleCreateInfo(prog.size, reinterpret_cast<uint32_t *>(prog.data));
     VkResult result = vkCreateShaderModule(device, &createInfo, nullptr, shaderModule);
     FileReader::freeFileBin(&prog);
     return result != VK_SUCCESS;
@@ -137,9 +89,10 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
     VkShaderModule vertexShader, fragmentShader;
     initShaderModule(device.logical, "shaders/vert.spv", &vertexShader);
     initShaderModule(device.logical, "shaders/frag.spv", &fragmentShader);
-    VkPipelineShaderStageCreateInfo shaderStageCreateInfo[2];
-    shaderStageCreateInfo[0] = VKSTRUCT::pipelineShaderStageCreateInfo(vertexShader, VK_SHADER_STAGE_VERTEX_BIT);
-    shaderStageCreateInfo[1] = VKSTRUCT::pipelineShaderStageCreateInfo(fragmentShader, VK_SHADER_STAGE_FRAGMENT_BIT);
+    VkPipelineShaderStageCreateInfo shaderStageCreateInfo[] = {
+            VKSTRUCT::pipelineShaderStageCreateInfo(vertexShader, VK_SHADER_STAGE_VERTEX_BIT),
+            VKSTRUCT::pipelineShaderStageCreateInfo(fragmentShader, VK_SHADER_STAGE_FRAGMENT_BIT)
+    };
 
     /* Vertex data arranged as =
      * {x, y, z, w, r, g, b, a}
@@ -176,24 +129,6 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
     return 0;
 }
 
-/*
-int Renderer::initBuffersAndMemory(DeviceInfo device) {
-  initBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000, &this->stagingBuffer);
-  initBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, Data::vertexDataSize, &this->vertexBuffer);
-
-    allocateBufferMemory(device, this->stagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &this->hostVisibleMemory);
-    allocateBufferMemory(device, this->vertexBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->deviceLocalMemory);
-
-  vkBindBufferMemory(device.logical, this->stagingBuffer, this->hostVisibleMemory, 0);
-  vkBindBufferMemory(device.logical, this->vertexBuffer, this->deviceLocalMemory, 0);
-
-  updateStagingBuffer(device, Data::vertexData, Data::vertexDataSize);
-  return submitStagingBuffer(device);
-}
- */
-
-
-
 int
 Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkExtent2D extent, VkImageView *imageView,
                               VkImage image) {
@@ -201,24 +136,11 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
         vkDestroyFramebuffer(device.logical, virtualFrame->framebuffer, nullptr);
     }
 
-    VkFramebufferCreateInfo framebufferCreateInfo = {};
-    framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferCreateInfo.pNext = nullptr;
-    framebufferCreateInfo.flags = 0;
-    framebufferCreateInfo.renderPass = this->renderPass;
-    framebufferCreateInfo.attachmentCount = 1;
-    framebufferCreateInfo.pAttachments = imageView;
-    framebufferCreateInfo.width = extent.width;
-    framebufferCreateInfo.height = extent.height;
-    framebufferCreateInfo.layers = 1;
+    VkFramebufferCreateInfo framebufferCreateInfo = VKSTRUCT::framebufferCreateInfo(this->renderPass, 1, imageView, extent.width, extent.height);
 
     vkCreateFramebuffer(device.logical, &framebufferCreateInfo, nullptr, &virtualFrame->framebuffer);
 
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.pNext = nullptr;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    beginInfo.pInheritanceInfo = nullptr;
+    VkCommandBufferBeginInfo beginInfo = VKSTRUCT::commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
     vkBeginCommandBuffer(virtualFrame->cmdBuffer, &beginInfo);
 
@@ -812,7 +734,7 @@ int Renderer::submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferA
     vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer.getHandle(), dstBuffer.getHandle(),
                     1, &bufferCopy);
 
-    // This is undefined behaviour... will need to fix!
+    // This is undefined behaviour... will need to fix! As in commenting it out is undefined
     /*
     VkBufferMemoryBarrier memoryBarrier = {};
     memoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;

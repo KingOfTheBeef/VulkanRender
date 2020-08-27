@@ -273,7 +273,8 @@ namespace VKSTRUCT {
         return set;
     }
 
-    inline static VkDescriptorImageInfo descriptorImageInfo(VkSampler sampler, VkImageLayout imageLayout, VkImageView imageView) {
+    inline static VkDescriptorImageInfo
+    descriptorImageInfo(VkSampler sampler, VkImageLayout imageLayout, VkImageView imageView) {
         VkDescriptorImageInfo info;
         info.sampler = sampler;
         info.imageLayout = imageLayout;
@@ -281,7 +282,8 @@ namespace VKSTRUCT {
         return info;
     }
 
-    inline static VkDescriptorBufferInfo descriptorBufferInfo(VkBuffer buffer, uint32_t offset = 0, VkDeviceSize deviceSize = VK_WHOLE_SIZE) {
+    inline static VkDescriptorBufferInfo
+    descriptorBufferInfo(VkBuffer buffer, uint32_t offset = 0, VkDeviceSize deviceSize = VK_WHOLE_SIZE) {
         VkDescriptorBufferInfo info;
         info.buffer = buffer;
         info.offset = offset;
@@ -312,7 +314,9 @@ namespace VKSTRUCT {
         return info;
     }
 
-    inline static VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(uint32_t binding, VkDescriptorType descriptorType, uint32_t descriptorCount, VkShaderStageFlagBits stageFlags) {
+    inline static VkDescriptorSetLayoutBinding
+    descriptorSetLayoutBinding(uint32_t binding, VkDescriptorType descriptorType, uint32_t descriptorCount,
+                               VkShaderStageFlagBits stageFlags) {
         VkDescriptorSetLayoutBinding layoutBinding;
         layoutBinding.binding = binding;
         layoutBinding.descriptorType = descriptorType;
@@ -322,13 +326,121 @@ namespace VKSTRUCT {
         return layoutBinding;
     }
 
-    inline static VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo(uint32_t bindingCount, VkDescriptorSetLayoutBinding *descriptorSetLayoutBindings) {
+    inline static VkDescriptorSetLayoutCreateInfo
+    descriptorSetLayoutCreateInfo(uint32_t bindingCount, VkDescriptorSetLayoutBinding *descriptorSetLayoutBindings) {
         VkDescriptorSetLayoutCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         info.pNext = nullptr;
         info.flags = 0;
         info.bindingCount = bindingCount;
         info.pBindings = descriptorSetLayoutBindings;
+        return info;
+    }
+
+    inline static VkAttachmentDescription
+    attachmentDescription(VkFormat format, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED) {
+        VkAttachmentDescription description;
+        description.format = format;
+        description.flags = 0;
+        description.initialLayout = initialLayout;
+        description.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        description.samples = VK_SAMPLE_COUNT_1_BIT;
+        return description;
+    }
+
+    inline static VkAttachmentReference attachmentReference(uint32_t attachment, VkImageLayout layout) {
+        VkAttachmentReference reference;
+        reference.attachment = 0;
+        reference.layout = layout;
+        return reference;
+    }
+
+    inline static VkSubpassDescription subpassDescription(
+            uint32_t inputAttachmentCount, VkAttachmentReference *inputAttachments,
+            uint32_t colorAttachmentCount, VkAttachmentReference *colorAttachments) {
+        VkSubpassDescription description;
+        description.flags = 0;
+        description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        description.inputAttachmentCount = inputAttachmentCount;
+        description.pInputAttachments = inputAttachments;
+        description.colorAttachmentCount = colorAttachmentCount;
+        description.pColorAttachments = colorAttachments;
+        description.pResolveAttachments = nullptr;
+        description.pDepthStencilAttachment = nullptr;
+        description.preserveAttachmentCount = 0;
+        description.pPreserveAttachments = nullptr;
+        return description;
+    }
+
+    inline static VkSubpassDependency
+    subpassDependency(uint32_t srcSubpass, uint32_t dstSubpass, VkPipelineStageFlags srcStageMask,
+                      VkPipelineStageFlags dstStageMask,
+                      VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkDependencyFlags dependencyFlags) {
+        VkSubpassDependency dependency;
+        dependency.srcSubpass = srcSubpass;
+        dependency.dstSubpass = dstSubpass;
+        dependency.srcStageMask = srcStageMask;
+        dependency.dstStageMask = dstStageMask;
+        dependency.srcAccessMask = srcAccessMask;
+        dependency.dstAccessMask = dstAccessMask;
+        dependency.dependencyFlags = dependencyFlags;
+        return dependency;
+    }
+
+    inline static VkRenderPassCreateInfo renderPassCreateInfo(
+            uint32_t attachmentCount, VkAttachmentDescription *attachmentDescriptions,
+            uint32_t dependencyCount, VkSubpassDependency *subpassDependencies,
+            uint32_t subpassCount, VkSubpassDescription *subpassDescriptions
+            ) {
+        VkRenderPassCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        info.flags = 0;
+        info.pNext = nullptr;
+        info.attachmentCount = attachmentCount;
+        info.pAttachments = attachmentDescriptions;
+        info.dependencyCount = dependencyCount;
+        info.pDependencies = subpassDependencies;
+        info.subpassCount = subpassCount;
+        info.pSubpasses = subpassDescriptions;
+        return info;
+    }
+
+    inline struct VkShaderModuleCreateInfo shaderModuleCreateInfo(size_t codeSize, const uint32_t *code) {
+        VkShaderModuleCreateInfo info;
+        info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = 0;
+        info.codeSize = codeSize;
+        info.pCode = code;
+        return info;
+    }
+
+    inline static VkFramebufferCreateInfo framebufferCreateInfo(VkRenderPass renderPass,
+            uint32_t attachmentCount, VkImageView *attachments,
+            uint32_t width, uint32_t height) {
+        VkFramebufferCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = 0;
+        info.renderPass = renderPass;
+        info.attachmentCount = attachmentCount;
+        info.pAttachments = attachments;
+        info.width = width;
+        info.height = height;
+        info.layers = 1;
+        return info;
+    }
+
+    inline struct VkCommandBufferBeginInfo commandBufferBeginInfo(VkCommandBufferUsageFlags usageFlags, const VkCommandBufferInheritanceInfo *inheritanceInfo =  nullptr) {
+        VkCommandBufferBeginInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        info.pNext = nullptr;
+        info.flags = usageFlags;
+        info.pInheritanceInfo = inheritanceInfo;
         return info;
     }
 }
