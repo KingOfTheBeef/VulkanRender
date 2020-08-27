@@ -288,6 +288,49 @@ namespace VKSTRUCT {
         info.range = deviceSize;
         return info;
     }
+
+    inline struct VkSamplerCreateInfo samplerCreateInfo() {
+        VkSamplerCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = 0;
+        info.magFilter = VK_FILTER_LINEAR;
+        info.minFilter = VK_FILTER_LINEAR;
+        info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        info.mipLodBias = 0.0f;
+        info.anisotropyEnable = VK_FALSE;
+        info.maxAnisotropy = 1.0f;
+        info.compareEnable = VK_FALSE;
+        info.compareOp = VK_COMPARE_OP_ALWAYS;
+        info.minLod = 0.0f;
+        info.maxLod = 0.0f;
+        info.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+        info.unnormalizedCoordinates = VK_FALSE;
+        return info;
+    }
+
+    inline static VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(uint32_t binding, VkDescriptorType descriptorType, uint32_t descriptorCount, VkShaderStageFlagBits stageFlags) {
+        VkDescriptorSetLayoutBinding layoutBinding;
+        layoutBinding.binding = binding;
+        layoutBinding.descriptorType = descriptorType;
+        layoutBinding.descriptorCount = descriptorCount;
+        layoutBinding.stageFlags = stageFlags;
+        layoutBinding.pImmutableSamplers = nullptr;
+        return layoutBinding;
+    }
+
+    inline static VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo(uint32_t bindingCount, VkDescriptorSetLayoutBinding *descriptorSetLayoutBindings) {
+        VkDescriptorSetLayoutCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = 0;
+        info.bindingCount = bindingCount;
+        info.pBindings = descriptorSetLayoutBindings;
+        return info;
+    }
 }
 
 #endif //DYNAMICLINK_VULKANSTRUCTURES_H

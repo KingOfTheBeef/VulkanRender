@@ -642,59 +642,18 @@ int Renderer::updateTexture(DeviceInfo device, ImageFile imageFile, VkImage imag
 }
 
 int Renderer::initSampler(DeviceInfo device, VkSampler *sampler) {
-
-    VkSamplerCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.magFilter = VK_FILTER_LINEAR;
-    createInfo.minFilter = VK_FILTER_LINEAR;
-    createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-    createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    createInfo.mipLodBias = 0.0f;
-    createInfo.anisotropyEnable = VK_FALSE;
-    createInfo.maxAnisotropy = 1.0f;
-    createInfo.compareEnable = VK_FALSE;
-    createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    createInfo.minLod = 0.0f;
-    createInfo.maxLod = 0.0f;
-    createInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
-    createInfo.unnormalizedCoordinates = VK_FALSE;
-
+    VkSamplerCreateInfo createInfo = VKSTRUCT::samplerCreateInfo();
     vkCreateSampler(device.logical, &createInfo, nullptr, sampler);
     return 0;
 }
 
 int Renderer::initDescriptorSetLayout(DeviceInfo device, VkDescriptorSetLayout *descriptorSetLayout) {
-
     VkDescriptorSetLayoutBinding bindings[3];
-    bindings[0].binding = 0;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    bindings[0].descriptorCount = 1;
-    bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    bindings[0].pImmutableSamplers = nullptr;
+    bindings[0] = VKSTRUCT::descriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+    bindings[1] = VKSTRUCT::descriptorSetLayoutBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
+    bindings[2] = VKSTRUCT::descriptorSetLayoutBinding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
 
-    bindings[1].binding = 1;
-    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bindings[1].descriptorCount = 1;
-    bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    bindings[1].pImmutableSamplers = nullptr;
-
-    bindings[2].binding = 2;
-    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bindings[2].descriptorCount = 1;
-    bindings[2].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    bindings[2].pImmutableSamplers = nullptr;
-
-    VkDescriptorSetLayoutCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.bindingCount = 3;
-    createInfo.pBindings = bindings;
-
+    VkDescriptorSetLayoutCreateInfo createInfo = VKSTRUCT::descriptorSetLayoutCreateInfo(3, bindings);
     vkCreateDescriptorSetLayout(device.logical, &createInfo, nullptr, descriptorSetLayout);
     return 0;
 }
