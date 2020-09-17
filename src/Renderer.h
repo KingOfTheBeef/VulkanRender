@@ -44,6 +44,8 @@ private:
 
     Buffer                  vertexBuffer;
     Buffer                  indexBuffer;
+    Buffer                  instanceBuffer;
+
     Buffer                  stagingBuffer;
     Buffer                  uniformBuffer;
 

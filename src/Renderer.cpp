@@ -71,6 +71,7 @@ void Renderer::clean(DeviceInfo device) {
 
     this->stagingBuffer.destroy(device);
     this->vertexBuffer.destroy(device);
+    this->instanceBuffer.destroy(device);
     this->indexBuffer.destroy(device);
     this->uniformBuffer.destroy(device);
 
@@ -99,12 +100,18 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
      * i.e. 4 32bit floats for xyzw coordinates and then rgba color values, interleaved
      * */
 
-    VkVertexInputBindingDescription vertexInputBindingDescription[1];
-    vertexInputBindingDescription[0] = VKSTRUCT::vertexInputBindingDescription(0, sizeof(float) * 6, VK_VERTEX_INPUT_RATE_VERTEX);
-    VkVertexInputAttributeDescription vertexInputAttributeDescription[2];
+    VkVertexInputBindingDescription vertexInputBindingDescription[2];
+    vertexInputBindingDescription[0] = VKSTRUCT::vertexInputBindingDescription(0, sizeof(float) * 6, VK_VERTEX_INPUT_RATE_VERTEX);      // Vertex data
+    vertexInputBindingDescription[1] = VKSTRUCT::vertexInputBindingDescription(1, sizeof(float) * 2, VK_VERTEX_INPUT_RATE_INSTANCE);    // Instance Data
+
+    VkVertexInputAttributeDescription vertexInputAttributeDescription[3];
+    // Vertex
     vertexInputAttributeDescription[0] = VKSTRUCT::vertexInputAttributeDescription(0, VK_FORMAT_R32G32B32A32_SFLOAT, 0, Data::positionOffset);
     vertexInputAttributeDescription[1] = VKSTRUCT::vertexInputAttributeDescription(0, VK_FORMAT_R32G32_SFLOAT, 1, Data::colorOffset);
-    VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = VKSTRUCT::pipelineVertexInputStateCreateInfo(1, vertexInputBindingDescription, 2, vertexInputAttributeDescription);
+    // Instance
+    vertexInputAttributeDescription[2] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32_SFLOAT, 2, 0);
+
+    VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = VKSTRUCT::pipelineVertexInputStateCreateInfo(2, vertexInputBindingDescription, 3, vertexInputAttributeDescription);
     VkPipelineInputAssemblyStateCreateInfo assemblyStateCreateInfo = VKSTRUCT::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     VkPipelineViewportStateCreateInfo viewportStateCreateInfo = VKSTRUCT::pipelineViewportStateCreateInfo(1, 1);
     VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = VKSTRUCT::pipelineRasterizationStateCreateInfo();
@@ -170,8 +177,12 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
     vkCmdSetScissor(virtualFrame->cmdBuffer, 0, 1, &rect);
 
     VkDeviceSize offset = 0;
-    VkBuffer buffer = this->vertexBuffer.getHandle();
-    vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 0, 1, &buffer, &offset);
+    VkBuffer buffers[2];
+    buffers[0] = this->vertexBuffer.getHandle();
+    buffers[1] = this->instanceBuffer.getHandle();
+
+    vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 0, 1, &buffers[0], &offset);
+    vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 1, 1, &buffers[1], &offset);
 
     vkCmdBindIndexBuffer(virtualFrame->cmdBuffer, this->indexBuffer.getHandle(), 0, VK_INDEX_TYPE_UINT16);
 
@@ -441,17 +452,18 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     initSampler(device, &this->texture.sampler);
 
     // Buffers
-    Buffer deviceLocalBuffers[4];
+    Buffer deviceLocalBuffers[5];
     deviceLocalBuffers[0] = this->vertexBuffer  = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData));
     deviceLocalBuffers[1] = this->indexBuffer   = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData));
     deviceLocalBuffers[2] = this->uniformBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
     Buffer modelMatrix = deviceLocalBuffers[3] = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16 * 2);
+    deviceLocalBuffers[4] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 4);
 
     this->stagingBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
 
     // Memory objects
     this->hostVisibleMemory = DeviceMemory::createHostVisibleMemory(device, 1, &this->stagingBuffer);
-    this->deviceLocalMemory = DeviceMemory::createDeviceMemory(device, 4, deviceLocalBuffers,
+    this->deviceLocalMemory = DeviceMemory::createDeviceMemory(device, 5, deviceLocalBuffers,
                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // Initialise new descriptor set
@@ -476,9 +488,16 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, modelMatrix, sizeof(float) * 16 * 2);
     vkDeviceWaitIdle(device.logical);
 
+    // TODO: Use more granular synchro for device wait idle after every update, problem is that we reuse the same staging buffer each update
+
     // Update vertex buffer
     updateStagingBuffer(device, Data::indexedVertexData, sizeof(Data::indexedVertexData));
     submitStagingBuffer(device, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, this->vertexBuffer, sizeof(Data::indexedVertexData));
+    vkDeviceWaitIdle(device.logical);
+
+    // Update instance buffer
+    updateStagingBuffer(device, Data::instanceData, sizeof(Data::instanceData));
+    submitStagingBuffer(device, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, this->instanceBuffer, sizeof(Data::instanceData));
     vkDeviceWaitIdle(device.logical);
 
     // Update index buffer

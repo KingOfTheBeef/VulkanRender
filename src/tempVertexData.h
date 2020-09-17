@@ -21,6 +21,12 @@ namespace Data {
         0, 1, 2, 0, 3, 2
     };
 
+    // 2D coords for each instance
+    static float instanceData[] = {
+        15.0f, -5.0f,
+        0.0f, 0.0f
+    };
+
 
     static float vertexData[] = {
             // Position                  // Color
