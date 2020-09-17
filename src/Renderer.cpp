@@ -191,7 +191,7 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
 
     // Data::
     // vkCmdDraw(virtualFrame->cmdBuffer, 6, 1, 0, 0);
-    vkCmdDrawIndexed(virtualFrame->cmdBuffer, 6, 2, 0, 0, 0);
+    vkCmdDrawIndexed(virtualFrame->cmdBuffer, 6, Data::instanceCount, 0, 0, 0);
 
     vkCmdEndRenderPass(virtualFrame->cmdBuffer);
 

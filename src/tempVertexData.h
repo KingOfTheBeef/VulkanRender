@@ -22,9 +22,13 @@ namespace Data {
     };
 
     // 2D coords for each instance
+    static int instanceCount = 5;
     static float instanceData[] = {
         15.0f, -5.0f,
-        0.0f, 0.0f
+        0.0f, 0.0f,
+        20.0f, 10.f,
+        -15.6f, 32.5f,
+        24.0f, -13.0f
     };
 
 
