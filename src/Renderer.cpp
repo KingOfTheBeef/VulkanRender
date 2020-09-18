@@ -457,7 +457,7 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     deviceLocalBuffers[1] = this->indexBuffer   = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData));
     deviceLocalBuffers[2] = this->uniformBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
     Buffer modelMatrix = deviceLocalBuffers[3] = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16 * 2);
-    deviceLocalBuffers[4] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 4);
+    deviceLocalBuffers[4] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * Data::instanceCount * 2);
 
     this->stagingBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
 
@@ -481,7 +481,7 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     vkDeviceWaitIdle(device.logical);
 
     GMATH::mat4 idMat[2];
-    idMat[0] = GMATH::translateMatrix();
+    idMat[0] = GMATH::translateMatrix(GMATH::vec3(15.0f, -5.0f, 0.0f));
     idMat[1] = GMATH::identityMatrix();
 
     updateStagingBuffer(device, idMat, sizeof(float) * 16 * 2);
