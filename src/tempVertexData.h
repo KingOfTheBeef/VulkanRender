@@ -9,6 +9,35 @@
 
 namespace Data {
 
+
+    static float cubeModel[] = {
+            // Top
+            -5.0f, 10.0f, 5.0f, 0.0f,   // 0
+            5.0f, 10.0f, 5.0f, 0.0f,    // 1
+            5.0f, 10.0f, -5.0f, 0.0f,   // 2
+            -5.0f, 10.0f, -5.0f, 0.0f,  // 3
+            // Bottom
+            -5.0f, 0.0f, 5.0f, 0.0f,    // 4
+            5.0f, 0.0f, 5.0f, 0.0f,     // 5
+            5.0f, 0.0f, -5.0f, 0.0f,    // 6
+            -5.0f, 0.0f, -5.0f, 0.0f    // 7
+    };
+
+    static float cubeIndex[] = {
+            // Top Face
+            0, 1, 2, 1, 2, 3,
+            // Front face
+            3, 2, 6, 3, 6, 7,
+            // Left face
+            0, 3, 4, 3, 4, 7,
+            // Right face
+            2, 1, 5, 2, 5, 6,
+            // Back face
+            0, 1, 2, 1, 2, 5,
+            // Bottom face
+            4, 5, 6, 4, 6, 7
+    };
+
     static float indexedVertexData[] = {
             // Coords                       // UVs
             -10.0f, -10.0f, 0.0f, 1.0f,     0.0f, 0.0f,     // top left
