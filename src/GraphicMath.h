@@ -5,6 +5,8 @@
 #ifndef DYNAMICLINK_GRAPHICMATH_H
 #define DYNAMICLINK_GRAPHICMATH_H
 
+#include <glm/glm.hpp>
+
 // Matrices in COLUMN-MAJOR order
 
 namespace GMATH {
