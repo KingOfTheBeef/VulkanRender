@@ -15,12 +15,12 @@ namespace GMATH {
     typedef glm::mat4 mat4;
     typedef glm::vec3 vec3;
 
-    static mat4 translateMatrix(mat4 matrix, vec3 translation) {
+    static mat4 translateMatrix(vec3 translation, mat4 matrix = mat4(1.0f)) {
         return glm::translate(matrix, translation);
     }
 
-    static mat4 translateMatrix(vec3 translation) {
-        return glm::translate(mat4(1.0f), translation);
+    static mat4 rotateMatrix(vec3 vector, float angle, mat4 matrix = mat4(1.0f)) {
+        return glm::rotate(matrix, angle, vector);
     }
 
     static mat4 identityMatrix() {

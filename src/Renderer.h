@@ -47,7 +47,7 @@ private:
     Buffer                  instanceBuffer;
 
     Buffer                  stagingBuffer;
-    Buffer                  uniformBuffer;
+    Buffer                  projectionBuffer;
 
     HostVisibleDeviceMemory hostVisibleMemory;
     DeviceMemory            deviceLocalMemory;

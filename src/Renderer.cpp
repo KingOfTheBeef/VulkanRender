@@ -46,11 +46,11 @@ int Renderer::initShaderModule(VkDevice device, const char *filename, VkShaderMo
 
 void Renderer::clean(DeviceInfo device) {
 
-    vkDestroyImageView(device.logical, this->texture.image.view, nullptr);
-    vkDestroyImage(device.logical, this->texture.image.handle, nullptr);
-    vkFreeMemory(device.logical, this->texture.image.memory, nullptr);
+    // vkDestroyImageView(device.logical, this->texture.image.view, nullptr);
+    // vkDestroyImage(device.logical, this->texture.image.handle, nullptr);
+    // vkFreeMemory(device.logical, this->texture.image.memory, nullptr);
 
-    vkDestroySampler(device.logical, this->texture.sampler, nullptr);
+    // vkDestroySampler(device.logical, this->texture.sampler, nullptr);
 
     vkDestroyDescriptorSetLayout(device.logical, this->descriptorSets[0].layout, nullptr);
     vkDestroyDescriptorPool(device.logical, this->descriptorSets[0].pool, nullptr);
@@ -73,7 +73,7 @@ void Renderer::clean(DeviceInfo device) {
     this->vertexBuffer.destroy(device);
     this->instanceBuffer.destroy(device);
     this->indexBuffer.destroy(device);
-    this->uniformBuffer.destroy(device);
+    this->projectionBuffer.destroy(device);
 
     this->deviceLocalMemory.free(device);
     this->hostVisibleMemory.free(device);
@@ -101,17 +101,22 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
      * */
 
     VkVertexInputBindingDescription vertexInputBindingDescription[2];
-    vertexInputBindingDescription[0] = VKSTRUCT::vertexInputBindingDescription(0, sizeof(float) * 6, VK_VERTEX_INPUT_RATE_VERTEX);      // Vertex data
-    vertexInputBindingDescription[1] = VKSTRUCT::vertexInputBindingDescription(1, sizeof(float) * 2, VK_VERTEX_INPUT_RATE_INSTANCE);    // Instance Data
+    vertexInputBindingDescription[0] = VKSTRUCT::vertexInputBindingDescription(0, Data::Cube::vertexStride, VK_VERTEX_INPUT_RATE_VERTEX);      // Vertex data
+    vertexInputBindingDescription[1] = VKSTRUCT::vertexInputBindingDescription(1, Data::Cube::instanceStride, VK_VERTEX_INPUT_RATE_INSTANCE);    // Instance Data
 
-    VkVertexInputAttributeDescription vertexInputAttributeDescription[3];
+    VkVertexInputAttributeDescription vertexInputAttributeDescription[6];
     // Vertex
-    vertexInputAttributeDescription[0] = VKSTRUCT::vertexInputAttributeDescription(0, VK_FORMAT_R32G32B32A32_SFLOAT, 0, Data::positionOffset);
-    vertexInputAttributeDescription[1] = VKSTRUCT::vertexInputAttributeDescription(0, VK_FORMAT_R32G32_SFLOAT, 1, Data::colorOffset);
-    // Instance
-    vertexInputAttributeDescription[2] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32_SFLOAT, 2, 0);
+    vertexInputAttributeDescription[0] = VKSTRUCT::vertexInputAttributeDescription(0, VK_FORMAT_R32G32B32A32_SFLOAT, 0, Data::Cube::positionOffset);
+    vertexInputAttributeDescription[1] = VKSTRUCT::vertexInputAttributeDescription(0, VK_FORMAT_R32G32B32A32_SFLOAT, 1, Data::Cube::colourOffset);
 
-    VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = VKSTRUCT::pipelineVertexInputStateCreateInfo(2, vertexInputBindingDescription, 3, vertexInputAttributeDescription);
+    // Instance
+    // We pass each column of our 4by4 mat as a separate vec4
+    vertexInputAttributeDescription[2] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 2, Data::Cube::instanceOffsets[0]);
+    vertexInputAttributeDescription[3] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 3, Data::Cube::instanceOffsets[1]);
+    vertexInputAttributeDescription[4] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 4, Data::Cube::instanceOffsets[2]);
+    vertexInputAttributeDescription[5] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 5, Data::Cube::instanceOffsets[3]);
+
+    VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = VKSTRUCT::pipelineVertexInputStateCreateInfo(2, vertexInputBindingDescription, 6, vertexInputAttributeDescription);
     VkPipelineInputAssemblyStateCreateInfo assemblyStateCreateInfo = VKSTRUCT::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     VkPipelineViewportStateCreateInfo viewportStateCreateInfo = VKSTRUCT::pipelineViewportStateCreateInfo(1, 1);
     VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = VKSTRUCT::pipelineRasterizationStateCreateInfo();
@@ -191,7 +196,7 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
 
     // Data::
     // vkCmdDraw(virtualFrame->cmdBuffer, 6, 1, 0, 0);
-    vkCmdDrawIndexed(virtualFrame->cmdBuffer, 6, Data::instanceCount, 0, 0, 0);
+    vkCmdDrawIndexed(virtualFrame->cmdBuffer, Data::Cube::cubeIndexCount, Data::Cube::instanceCount, 0, 0, 0);
 
     vkCmdEndRenderPass(virtualFrame->cmdBuffer);
 
@@ -395,22 +400,22 @@ int Renderer::initSampler(DeviceInfo device, VkSampler *sampler) {
 
 int Renderer::initDescriptorSetLayout(DeviceInfo device, VkDescriptorSetLayout *descriptorSetLayout) {
     VkDescriptorSetLayoutBinding bindings[3];
-    bindings[0] = VKSTRUCT::descriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-    bindings[1] = VKSTRUCT::descriptorSetLayoutBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
-    bindings[2] = VKSTRUCT::descriptorSetLayoutBinding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
+    // bindings[0] = VKSTRUCT::descriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+    bindings[0] = VKSTRUCT::descriptorSetLayoutBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
+    // bindings[2] = VKSTRUCT::descriptorSetLayoutBinding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
 
-    VkDescriptorSetLayoutCreateInfo createInfo = VKSTRUCT::descriptorSetLayoutCreateInfo(3, bindings);
+    VkDescriptorSetLayoutCreateInfo createInfo = VKSTRUCT::descriptorSetLayoutCreateInfo(1, bindings);
     vkCreateDescriptorSetLayout(device.logical, &createInfo, nullptr, descriptorSetLayout);
     return 0;
 }
 
 int Renderer::initDescriptorPool(DeviceInfo device, VkDescriptorPool *descriptorPool) {
     VkDescriptorPoolSize descriptorPoolSize[] = {
-            VKSTRUCT::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1),
-            VKSTRUCT::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2)
+            // VKSTRUCT::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1),
+            VKSTRUCT::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)
     };
 
-    VkDescriptorPoolCreateInfo createInfo = VKSTRUCT::descriptorPoolCreateInfo(1, 2, descriptorPoolSize);
+    VkDescriptorPoolCreateInfo createInfo = VKSTRUCT::descriptorPoolCreateInfo(1, 1, descriptorPoolSize);
     vkCreateDescriptorPool(device.logical, &createInfo, nullptr, descriptorPool);
     return 0;
 }
@@ -423,91 +428,105 @@ int Renderer::allocateDescriptor(DeviceInfo device, VkDescriptorPool descriptorP
 }
 
 int
-Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, Buffer uniformBuffer, Buffer model) {
+Renderer::updateDescriptor(DeviceInfo device, VkDescriptorSet descriptorSet, VkImageView imageView, VkSampler sampler, Buffer uniformBuffer, Buffer model = Buffer()) {
 
     VkDescriptorImageInfo imageInfo = VKSTRUCT::descriptorImageInfo(sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, imageView);
     VkDescriptorBufferInfo bufferInfos[2];
     bufferInfos[0] = VKSTRUCT::descriptorBufferInfo(uniformBuffer.getHandle());
-    bufferInfos[1] = VKSTRUCT::descriptorBufferInfo(model.getHandle());
+    //bufferInfos[1] = VKSTRUCT::descriptorBufferInfo(model.getHandle());
 
     VkWriteDescriptorSet writeDescriptorSet[3];
     writeDescriptorSet[0] = VKSTRUCT::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, 1, &imageInfo);
     writeDescriptorSet[1] = VKSTRUCT::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1, &bufferInfos[0]);
-    writeDescriptorSet[2] = VKSTRUCT::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, 1, &bufferInfos[1]);
+    //writeDescriptorSet[2] = VKSTRUCT::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, 1, &bufferInfos[1]);
 
-    vkUpdateDescriptorSets(device.logical, 3, writeDescriptorSet, 0, nullptr);
+    vkUpdateDescriptorSets(device.logical, 2, writeDescriptorSet, 0, nullptr);
     return 0;
 }
 
 int Renderer::initResources(DeviceInfo device, const char *filename, CombinedImageSampler *texture) {
     // RESOURCES FOR COMBINED IMAGE SAMPLER
     // Load texture file
-    ImageFile imageFile;
-    FileReader::loadImage(filename, &imageFile);
+    // ImageFile imageFile;
+    // FileReader::loadImage(filename, &imageFile);
 
     // Initialise texture
-    initTexture(device, imageFile.width, imageFile.height, &texture->image);
+    // initTexture(device, imageFile.width, imageFile.height, &texture->image);
 
     // Create Sampler
-    initSampler(device, &this->texture.sampler);
+    // initSampler(device, &this->texture.sampler);
 
     // Buffers
     Buffer deviceLocalBuffers[5];
-    deviceLocalBuffers[0] = this->vertexBuffer  = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexedVertexData));
-    deviceLocalBuffers[1] = this->indexBuffer   = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::indexData));
-    deviceLocalBuffers[2] = this->uniformBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
-    Buffer modelMatrix = deviceLocalBuffers[3] = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16 * 2);
-    deviceLocalBuffers[4] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * Data::instanceCount * 2);
+    deviceLocalBuffers[0] = this->vertexBuffer  = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::cubeModel));
+    deviceLocalBuffers[1] = this->indexBuffer   = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::cubeIndex));
+    deviceLocalBuffers[2] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::instanceViews));
+
+    deviceLocalBuffers[3] = this->projectionBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
+    // Buffer modelMatrix = deviceLocalBuffers[3] = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16 * 2);
+    // deviceLocalBuffers[4] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * Data::instanceCount * 2);
 
     this->stagingBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
 
     // Memory objects
     this->hostVisibleMemory = DeviceMemory::createHostVisibleMemory(device, 1, &this->stagingBuffer);
-    this->deviceLocalMemory = DeviceMemory::createDeviceMemory(device, 5, deviceLocalBuffers,
+    this->deviceLocalMemory = DeviceMemory::createDeviceMemory(device, 4, deviceLocalBuffers,
                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // Initialise new descriptor set
     initDescriptorSet(device, &this->descriptorSets[0]);
     // Update descriptor
-    updateDescriptor(device, this->descriptorSets[0].handle, this->texture.image.view, this->texture.sampler, this->uniformBuffer, modelMatrix);
+    // updateDescriptor(device, this->descriptorSets[0].handle, this->texture.image.view, this->texture.sampler, this->projectionBuffer);
+
+    VkDescriptorBufferInfo bufferInfos[1];
+    bufferInfos[0] = VKSTRUCT::descriptorBufferInfo(this->projectionBuffer.getHandle());
+    VkWriteDescriptorSet writeDescriptorSet[1];
+    writeDescriptorSet[0] = VKSTRUCT::writeDescriptorSet(this->descriptorSets[0].handle, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, 1, &bufferInfos[0]);
+    vkUpdateDescriptorSets(device.logical, 1, writeDescriptorSet, 0, nullptr);
+
 
     // Update texture
-    updateTexture(device, imageFile, texture->image.handle);
+    // updateTexture(device, imageFile, texture->image.handle);
 
     // update uniform buffer
-    GMATH::mat4 orthoMat = GMATH::orthographicMatrix(-30, 30, -30, 30, 0.0, 1.0);
+    GMATH::mat4 orthoMat = GMATH::orthographicMatrix(-30, 30, -30, 30, -10, 10);
     updateStagingBuffer(device, &orthoMat, sizeof(orthoMat));
-    submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, this->uniformBuffer, sizeof(orthoMat));
+    submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, this->projectionBuffer, sizeof(orthoMat));
     vkDeviceWaitIdle(device.logical);
 
+    /*
     GMATH::mat4 idMat[2];
     idMat[0] = GMATH::translateMatrix(GMATH::vec3(15.0f, -5.0f, 0.0f));
     idMat[1] = GMATH::identityMatrix();
+    */
 
+    // Update unform model matrices
+    /*
     updateStagingBuffer(device, idMat, sizeof(float) * 16 * 2);
     submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, modelMatrix, sizeof(float) * 16 * 2);
     vkDeviceWaitIdle(device.logical);
+    */
 
     // TODO: Use more granular synchro for device wait idle after every update, problem is that we reuse the same staging buffer each update
 
     // Update vertex buffer
-    updateStagingBuffer(device, Data::indexedVertexData, sizeof(Data::indexedVertexData));
-    submitStagingBuffer(device, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, this->vertexBuffer, sizeof(Data::indexedVertexData));
+    updateStagingBuffer(device, Data::Cube::cubeModel, sizeof(Data::Cube::cubeModel));
+    submitStagingBuffer(device, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, this->vertexBuffer, sizeof(Data::Cube::cubeModel));
     vkDeviceWaitIdle(device.logical);
 
     // Update instance buffer
-    updateStagingBuffer(device, Data::instanceData, sizeof(Data::instanceData));
-    submitStagingBuffer(device, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, this->instanceBuffer, sizeof(Data::instanceData));
+    updateStagingBuffer(device, Data::Cube::instanceViews, sizeof(Data::Cube::instanceViews));
+    submitStagingBuffer(device, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, this->instanceBuffer, sizeof(Data::Cube::instanceViews));
     vkDeviceWaitIdle(device.logical);
 
     // Update index buffer
-    updateStagingBuffer(device, Data::indexData, sizeof(Data::indexData));
-    submitStagingBuffer(device, VK_ACCESS_INDEX_READ_BIT, this->indexBuffer, sizeof(Data::indexData));
+    updateStagingBuffer(device, Data::Cube::cubeIndex, sizeof(Data::Cube::cubeIndex));
+    submitStagingBuffer(device, VK_ACCESS_INDEX_READ_BIT, this->indexBuffer, sizeof(Data::Cube::cubeIndex));
     vkDeviceWaitIdle(device.logical);
 
 
     // Free loaded texture image file
-    FileReader::freeImage(&imageFile);
+    // FileReader::freeImage(&imageFile);
     return 0;
 }
 
