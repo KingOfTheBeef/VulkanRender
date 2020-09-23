@@ -1,8 +1,11 @@
 # VulkanRender
 Repo for me learning how to do vulkan.
 
-All it does right now is draw a ~~cube~~ with a meme on it.\
-Well now its a square with a meme on it...
+All it does right now is draw instanced cubes.
+
+![Image of instanced Cubes](misc/instanced-cubes.PNG?raw=true "Instanced Cubes")
+\
+Clearly, there are some artifacts. I still need to add depth buffering.
 
 # TODO
 Unify all staging buffer to destination operations\
