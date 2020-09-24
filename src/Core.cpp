@@ -244,7 +244,7 @@ bool Core::checkPhysicalDeviceExtensions(VkPhysicalDevice physicalDevice, const 
 
 void Core::draw() {
   switch (renderer.draw(this->deviceInfo)) {
-    case VK_ERROR_OUT_OF_DATE_KHR:
+    case -1:
       windowResize();
       break;
     default:

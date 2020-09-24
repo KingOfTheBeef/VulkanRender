@@ -11,7 +11,7 @@
 #include "Swapchain.h"
 #include "Buffer.h"
 #include "DeviceMemory.h"
-
+#include "PipelineBuilder.h"
 
 class Renderer {
 public:
@@ -33,6 +33,7 @@ public:
 
 private:
     Swapchain               swapchain;
+    PipelineBuilder         pipelineBuilder;
 
     VkPipeline              pipeline;
     VkPipelineLayout        pipelineLayout;

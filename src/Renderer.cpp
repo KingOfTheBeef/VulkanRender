@@ -86,14 +86,9 @@ void Renderer::clean(DeviceInfo device) {
 }
 
 int Renderer::initGraphicPipeline(DeviceInfo device) {
-
     VkShaderModule vertexShader, fragmentShader;
     initShaderModule(device.logical, "shaders/vert.spv", &vertexShader);
     initShaderModule(device.logical, "shaders/frag.spv", &fragmentShader);
-    VkPipelineShaderStageCreateInfo shaderStageCreateInfo[] = {
-            VKSTRUCT::pipelineShaderStageCreateInfo(vertexShader, VK_SHADER_STAGE_VERTEX_BIT),
-            VKSTRUCT::pipelineShaderStageCreateInfo(fragmentShader, VK_SHADER_STAGE_FRAGMENT_BIT)
-    };
 
     /* Vertex data arranged as =
      * {x, y, z, w, r, g, b, a}
@@ -117,24 +112,10 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
     vertexInputAttributeDescription[5] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 5, Data::Cube::instanceOffsets[3]);
 
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = VKSTRUCT::pipelineVertexInputStateCreateInfo(2, vertexInputBindingDescription, 6, vertexInputAttributeDescription);
-    VkPipelineInputAssemblyStateCreateInfo assemblyStateCreateInfo = VKSTRUCT::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    VkPipelineViewportStateCreateInfo viewportStateCreateInfo = VKSTRUCT::pipelineViewportStateCreateInfo(1, 1);
-    VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = VKSTRUCT::pipelineRasterizationStateCreateInfo();
-    VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo = VKSTRUCT::pipelineMultisampleStateCreateInfo();
-    VkPipelineColorBlendAttachmentState colorBlendAttachmentState = VKSTRUCT::pipelineColorBlendAttachmentState();
-    VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = VKSTRUCT::pipelineColorBlendStateCreateInfo(1, &colorBlendAttachmentState);
     VkPipelineLayoutCreateInfo layoutCreateInfo = VKSTRUCT::pipelineLayoutCreateInfo(Renderer::descriptorSetCount, &this->descriptorSets[0].layout);
     vkCreatePipelineLayout(device.logical, &layoutCreateInfo, nullptr, &this->pipelineLayout);
-    VkDynamicState dynamicStates[2] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-    VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = VKSTRUCT::pipelineDynamicStateCreateInfo(2, dynamicStates);
-    VkGraphicsPipelineCreateInfo createInfo = VKSTRUCT::graphicsPipelineCreateInfo(
-            this->renderPass, &vertexInputStateCreateInfo, &assemblyStateCreateInfo, &viewportStateCreateInfo,
-            &rasterizationStateCreateInfo, &multisampleStateCreateInfo, &colorBlendStateCreateInfo,
-            this->pipelineLayout, &dynamicStateCreateInfo, 2, shaderStageCreateInfo);
 
-    if (vkCreateGraphicsPipelines(device.logical, 0, 1, &createInfo, nullptr, &this->pipeline) != VK_SUCCESS) {
-        std::cout << "Failed to do so" << std::endl;
-    }
+    pipelineBuilder.buildPipeline(device, this->renderPass, this->pipelineLayout, vertexInputStateCreateInfo, vertexShader, fragmentShader, &this->pipeline);
 
     vkDestroyShaderModule(device.logical, vertexShader, nullptr);
     vkDestroyShaderModule(device.logical, fragmentShader, nullptr);
@@ -218,13 +199,13 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
 
 int Renderer::draw(DeviceInfo device) {
     this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
-    VirtualFrame virtualFrame = this->virtualFrames[currentVirtualFrame];
+    VirtualFrame *currentVFrame = &this->virtualFrames[currentVirtualFrame];
     uint32_t imageIndex = 0;
 
-    vkWaitForFences(device.logical, 1, &virtualFrame.fence, VK_TRUE, UINT64_MAX);
-    vkResetFences(device.logical, 1, &virtualFrame.fence);
+    vkWaitForFences(device.logical, 1, &currentVFrame->fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(device.logical, 1, &currentVFrame->fence);
 
-    switch (this->swapchain.acquireImage(device, &imageIndex, virtualFrame.imageAvailableSema)) {
+    switch (this->swapchain.acquireImage(device, &imageIndex, currentVFrame->imageAvailableSema)) {
         case VK_SUCCESS:
         case VK_SUBOPTIMAL_KHR:
             break;
@@ -232,19 +213,19 @@ int Renderer::draw(DeviceInfo device) {
             return -1;
     }
 
-    prepareVirtualFrame(device, &virtualFrame, this->swapchain.getExtent(),
+    prepareVirtualFrame(device, currentVFrame, this->swapchain.getExtent(),
                         &this->swapchain.getImageViews()[imageIndex], this->swapchain.getImages()[imageIndex]);
 
     VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     VkSubmitInfo submitInfo = VKSTRUCT::submitInfo(
-            1, &virtualFrame.cmdBuffer,
-            1, &virtualFrame.imageFinishProcessingSema,
-            1, &virtualFrame.imageAvailableSema,
+            1, &currentVFrame->cmdBuffer,
+            1, &currentVFrame->imageFinishProcessingSema,
+            1, &currentVFrame->imageAvailableSema,
             &stageFlags);
 
-    vkQueueSubmit(device.graphicQueue, 1, &submitInfo, virtualFrame.fence);
+    vkQueueSubmit(device.graphicQueue, 1, &submitInfo, currentVFrame->fence);
 
-    switch (this->swapchain.presentImage(device, imageIndex, virtualFrame.imageFinishProcessingSema)) {
+    switch (this->swapchain.presentImage(device, imageIndex, currentVFrame->imageFinishProcessingSema)) {
         case VK_SUCCESS:
         case VK_SUBOPTIMAL_KHR:
             break;
