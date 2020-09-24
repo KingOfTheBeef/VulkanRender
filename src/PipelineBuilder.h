@@ -22,6 +22,11 @@ private:;
     VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo;
 
 public:
+    static int createPipelineLayout(DeviceInfo device, uint32_t descriptorSetCount, VkDescriptorSetLayout *descriptorSetLayouts, VkPipelineLayout *pipelineLayout) {
+        VkPipelineLayoutCreateInfo layoutCreateInfo = VKSTRUCT::pipelineLayoutCreateInfo(descriptorSetCount, descriptorSetLayouts);
+        return vkCreatePipelineLayout(device.logical, &layoutCreateInfo, nullptr, pipelineLayout);
+    }
+
     PipelineBuilder();
     int buildPipeline(DeviceInfo device, VkRenderPass renderPass, VkPipelineLayout pipelineLayout, VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo, VkShaderModule vertexShader, VkShaderModule fragmentShader, VkPipeline *pipeline);
 };

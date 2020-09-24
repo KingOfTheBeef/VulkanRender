@@ -55,8 +55,11 @@ void Renderer::clean(DeviceInfo device) {
     vkDestroyDescriptorSetLayout(device.logical, this->descriptorSets[0].layout, nullptr);
     vkDestroyDescriptorPool(device.logical, this->descriptorSets[0].pool, nullptr);
 
-    if (this->pipelineLayout != VK_NULL_HANDLE) {
-        vkDestroyPipelineLayout(device.logical, this->pipelineLayout, nullptr);
+    if (this->pipelines.cubes.layout != VK_NULL_HANDLE) {
+        vkDestroyPipelineLayout(device.logical, this->pipelines.cubes.layout, nullptr);
+    }
+    if (this->pipelines.backdrop.layout != VK_NULL_HANDLE) {
+        vkDestroyPipelineLayout(device.logical, this->pipelines.backdrop.layout, nullptr);
     }
 
     for (auto &virtualFrame : this->virtualFrames) {
@@ -80,12 +83,16 @@ void Renderer::clean(DeviceInfo device) {
 
     vkDestroyCommandPool(device.logical, this->cmdPool, nullptr);
     vkDestroyRenderPass(device.logical, this->renderPass, nullptr);
-    vkDestroyPipeline(device.logical, this->pipeline, nullptr);
+    vkDestroyPipeline(device.logical, this->pipelines.cubes.handle, nullptr);
+    vkDestroyPipeline(device.logical, this->pipelines.backdrop.handle, nullptr);
 
     this->swapchain.clean(device);
 }
 
 int Renderer::initGraphicPipeline(DeviceInfo device) {
+
+    /// Cube Pipeline ///
+
     VkShaderModule vertexShader, fragmentShader;
     initShaderModule(device.logical, "shaders/vert.spv", &vertexShader);
     initShaderModule(device.logical, "shaders/frag.spv", &fragmentShader);
@@ -110,15 +117,25 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
     vertexInputAttributeDescription[3] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 3, Data::Cube::instanceOffsets[1]);
     vertexInputAttributeDescription[4] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 4, Data::Cube::instanceOffsets[2]);
     vertexInputAttributeDescription[5] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 5, Data::Cube::instanceOffsets[3]);
-
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = VKSTRUCT::pipelineVertexInputStateCreateInfo(2, vertexInputBindingDescription, 6, vertexInputAttributeDescription);
-    VkPipelineLayoutCreateInfo layoutCreateInfo = VKSTRUCT::pipelineLayoutCreateInfo(Renderer::descriptorSetCount, &this->descriptorSets[0].layout);
-    vkCreatePipelineLayout(device.logical, &layoutCreateInfo, nullptr, &this->pipelineLayout);
 
-    pipelineBuilder.buildPipeline(device, this->renderPass, this->pipelineLayout, vertexInputStateCreateInfo, vertexShader, fragmentShader, &this->pipeline);
+    PipelineBuilder::createPipelineLayout(device, Renderer::descriptorSetCount, &this->descriptorSets[0].layout, &this->pipelines.cubes.layout);
+    pipelineBuilder.buildPipeline(device, this->renderPass, this->pipelines.cubes.layout, vertexInputStateCreateInfo, vertexShader, fragmentShader, &this->pipelines.cubes.handle);
 
     vkDestroyShaderModule(device.logical, vertexShader, nullptr);
     vkDestroyShaderModule(device.logical, fragmentShader, nullptr);
+
+    /// Backdrop pipeline ///
+
+    initShaderModule(device.logical, "shaders/vertexBack.spv", &vertexShader);
+    initShaderModule(device.logical, "shaders/fragmentBack.spv", &fragmentShader);
+    vertexInputStateCreateInfo = VKSTRUCT::pipelineVertexInputStateCreateInfo(0, nullptr, 0, nullptr);
+    PipelineBuilder::createPipelineLayout(device, 0, nullptr, &this->pipelines.backdrop.layout);
+    pipelineBuilder.buildPipeline(device, this->renderPass, this->pipelines.backdrop.layout, vertexInputStateCreateInfo, vertexShader, fragmentShader, &this->pipelines.backdrop.handle);
+
+    vkDestroyShaderModule(device.logical, vertexShader, nullptr);
+    vkDestroyShaderModule(device.logical, fragmentShader, nullptr);
+
     return 0;
 }
 
@@ -149,11 +166,6 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
     }
 
     VkClearValue clearColor = {1.0f, 0.8f, 0.4f, 0.0f};
-    VkRenderPassBeginInfo renderPassBeginInfo = VKSTRUCT::renderPassBeginInfo(virtualFrame->framebuffer, this->renderPass, extent, 1, &clearColor);
-
-    vkCmdBeginRenderPass(virtualFrame->cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    vkCmdBindPipeline(virtualFrame->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline);
 
     VkViewport viewport = VKSTRUCT::viewport(extent.width, extent.height, 0, 0, 0.0f, 1.0f);
 
@@ -162,21 +174,27 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
     vkCmdSetViewport(virtualFrame->cmdBuffer, 0, 1, &viewport);
     vkCmdSetScissor(virtualFrame->cmdBuffer, 0, 1, &rect);
 
-    VkDeviceSize offset = 0;
+    VkRenderPassBeginInfo renderPassBeginInfo = VKSTRUCT::renderPassBeginInfo(virtualFrame->framebuffer, this->renderPass, extent, 1, &clearColor);
+
+    vkCmdBeginRenderPass(virtualFrame->cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(virtualFrame->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.backdrop.handle);
+    vkCmdDraw(virtualFrame->cmdBuffer, 6, 1, 0, 0);
+
+    vkCmdBindPipeline(virtualFrame->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.cubes.handle);
+
+    VkDeviceSize offset[] = {0ull, 0ull};
     VkBuffer buffers[2];
     buffers[0] = this->vertexBuffer.getHandle();
     buffers[1] = this->instanceBuffer.getHandle();
 
-    vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 0, 1, &buffers[0], &offset);
-    vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 1, 1, &buffers[1], &offset);
+    vkCmdBindVertexBuffers(virtualFrame->cmdBuffer, 0, 2, buffers, offset);
 
     vkCmdBindIndexBuffer(virtualFrame->cmdBuffer, this->indexBuffer.getHandle(), 0, VK_INDEX_TYPE_UINT16);
 
-    vkCmdBindDescriptorSets(virtualFrame->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelineLayout, 0,
+    vkCmdBindDescriptorSets(virtualFrame->cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.cubes.layout, 0,
                             this->descriptorSetCount, &this->descriptorSets[0].handle, 0, nullptr);
 
-    // Data::
-    // vkCmdDraw(virtualFrame->cmdBuffer, 6, 1, 0, 0);
     vkCmdDrawIndexed(virtualFrame->cmdBuffer, Data::Cube::cubeIndexCount, Data::Cube::instanceCount, 0, 0, 0);
 
     vkCmdEndRenderPass(virtualFrame->cmdBuffer);

@@ -13,6 +13,11 @@
 #include "DeviceMemory.h"
 #include "PipelineBuilder.h"
 
+struct Pipeline {
+    VkPipeline          handle;
+    VkPipelineLayout    layout;
+};
+
 class Renderer {
 public:
     Renderer();
@@ -35,8 +40,11 @@ private:
     Swapchain               swapchain;
     PipelineBuilder         pipelineBuilder;
 
-    VkPipeline              pipeline;
-    VkPipelineLayout        pipelineLayout;
+    struct {
+        Pipeline cubes;
+        Pipeline backdrop;
+    } pipelines;
+
     VkRenderPass            renderPass;
     VkCommandPool           cmdPool;
     static const uint32_t   virtualFrameCount = 3;
