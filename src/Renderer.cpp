@@ -218,45 +218,38 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
 
 int Renderer::draw(DeviceInfo device) {
     this->currentVirtualFrame = (this->currentVirtualFrame + 1) % this->virtualFrameCount;
+    VirtualFrame virtualFrame = this->virtualFrames[currentVirtualFrame];
     uint32_t imageIndex = 0;
-    vkWaitForFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence, VK_TRUE, UINT64_MAX);
-    vkResetFences(device.logical, 1, &this->virtualFrames[currentVirtualFrame].fence);
 
-    VkResult result = vkAcquireNextImageKHR(device.logical, this->swapchain.getHandle(), UINT64_MAX,
-                                            this->virtualFrames[currentVirtualFrame].imageAvailableSema, VK_NULL_HANDLE,
-                                            &imageIndex);
-    switch (result) {
+    vkWaitForFences(device.logical, 1, &virtualFrame.fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(device.logical, 1, &virtualFrame.fence);
+
+    switch (this->swapchain.acquireImage(device, &imageIndex, virtualFrame.imageAvailableSema)) {
         case VK_SUCCESS:
         case VK_SUBOPTIMAL_KHR:
             break;
         default:
-            return result;
+            return -1;
     }
 
-    prepareVirtualFrame(device, &this->virtualFrames[currentVirtualFrame], this->swapchain.getExtent(),
+    prepareVirtualFrame(device, &virtualFrame, this->swapchain.getExtent(),
                         &this->swapchain.getImageViews()[imageIndex], this->swapchain.getImages()[imageIndex]);
 
     VkPipelineStageFlags stageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     VkSubmitInfo submitInfo = VKSTRUCT::submitInfo(
-            1, &this->virtualFrames[currentVirtualFrame].cmdBuffer,
-            1, &this->virtualFrames[currentVirtualFrame].imageFinishProcessingSema,
-            1, &this->virtualFrames[currentVirtualFrame].imageAvailableSema,
+            1, &virtualFrame.cmdBuffer,
+            1, &virtualFrame.imageFinishProcessingSema,
+            1, &virtualFrame.imageAvailableSema,
             &stageFlags);
 
-    vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[currentVirtualFrame].fence);
+    vkQueueSubmit(device.graphicQueue, 1, &submitInfo, virtualFrame.fence);
 
-    VkSwapchainKHR swapchainKHR = this->swapchain.getHandle();
-
-    VkPresentInfoKHR presentInfo = VKSTRUCT::presentInfoKhr(1, &swapchainKHR, &imageIndex, 1, &this->virtualFrames[currentVirtualFrame].imageFinishProcessingSema);
-
-    result = vkQueuePresentKHR(device.displayQueue, &presentInfo);
-
-    switch (result) {
+    switch (this->swapchain.presentImage(device, imageIndex, virtualFrame.imageFinishProcessingSema)) {
         case VK_SUCCESS:
         case VK_SUBOPTIMAL_KHR:
             break;
         default:
-            return result;
+            return -1;
     }
     return 0;
 }

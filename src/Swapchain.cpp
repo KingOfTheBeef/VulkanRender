@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include "Swapchain.h"
+#include "VulkanStructures.h"
 
 void Swapchain::initSwapchain(DeviceInfo device, VkSurfaceKHR surface) {
     VkPresentModeKHR presentMode;
@@ -213,4 +214,16 @@ Swapchain::Swapchain() {
     this->imageCount = 0;
     this->images = nullptr;
     this->imageViews = nullptr;
+}
+
+VkResult Swapchain::acquireImage(DeviceInfo device, uint32_t *imageIndex, VkSemaphore imageAvailableSemaphore = VK_NULL_HANDLE) {
+    return vkAcquireNextImageKHR(device.logical, this->getHandle(), UINT64_MAX, imageAvailableSemaphore,
+            VK_NULL_HANDLE, imageIndex);
+}
+
+VkResult Swapchain::presentImage(DeviceInfo device, uint32_t imageIndex, VkSemaphore imageFinishProcessingSemaphore = VK_NULL_HANDLE) {
+    VkPresentInfoKHR presentInfo = VKSTRUCT::presentInfoKhr(1, &this->handle, &imageIndex,
+            (imageFinishProcessingSemaphore == VK_NULL_HANDLE)?0:1, &imageFinishProcessingSemaphore);
+
+    return vkQueuePresentKHR(device.displayQueue, &presentInfo);
 }

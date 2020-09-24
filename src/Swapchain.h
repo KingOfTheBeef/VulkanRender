@@ -26,6 +26,9 @@ public:
 
     void      recreateSwapchain(DeviceInfo device, VkSurfaceKHR surface);
 
+    VkResult  acquireImage(DeviceInfo device, uint32_t *imageIndex, VkSemaphore imageAvailableSemaphore);
+    VkResult  presentImage(DeviceInfo device, uint32_t imageIndex, VkSemaphore imageFinishProcessingSemaphore);
+
     uint32_t            getImageCount()     { return this->imageCount; };
     VkImage*            getImages()         { return this->images; };
     VkImageView*        getImageViews()     { return this->imageViews; };
