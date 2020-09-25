@@ -29,9 +29,9 @@ vertexBackdrop.glsl
                9:      8(int) Constant 6
               10:             TypeArray 7(fvec2) 9
               11:             TypePointer Function 10
-              13:    6(float) Constant 3212836864
+              13:    6(float) Constant 3209481421
               14:    7(fvec2) ConstantComposite 13 13
-              15:    6(float) Constant 1065353216
+              15:    6(float) Constant 1061997773
               16:    7(fvec2) ConstantComposite 15 13
               17:    7(fvec2) ConstantComposite 15 15
               18:    7(fvec2) ConstantComposite 13 15
@@ -47,7 +47,7 @@ vertexBackdrop.glsl
               28:             TypePointer Input 26(int)
 29(gl_VertexIndex):     28(ptr) Variable Input
               31:             TypePointer Function 7(fvec2)
-              34:    6(float) Constant 0
+              34:    6(float) Constant 1065353216
               38:             TypePointer Output 20(fvec4)
          4(main):           2 Function None 3
                5:             Label
@@ -58,7 +58,7 @@ vertexBackdrop.glsl
               33:    7(fvec2) Load 32
               35:    6(float) CompositeExtract 33 0
               36:    6(float) CompositeExtract 33 1
-              37:   20(fvec4) CompositeConstruct 35 36 34 15
+              37:   20(fvec4) CompositeConstruct 35 36 34 34
               39:     38(ptr) AccessChain 25 27
                               Store 39 37
                               Return

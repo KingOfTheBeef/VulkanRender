@@ -12,6 +12,45 @@ DeviceMemory DeviceMemory::createDeviceMemory(DeviceInfo device, int bufferCount
     return deviceMemory;
 }
 
+DeviceMemory DeviceMemory::createDeviceMemory(DeviceInfo device, int imageCount, Image *images,
+                                              VkMemoryPropertyFlags memoryPropertyFlags) {
+    DeviceMemory deviceMemory;
+    DeviceMemory::allocateImageMemory(device, imageCount, images, memoryPropertyFlags, &deviceMemory);
+    return deviceMemory;
+}
+
+void DeviceMemory::allocateImageMemory(DeviceInfo device, int imageCount, Image *images,
+                                        VkMemoryPropertyFlags memoryPropertyFlags, DeviceMemory *deviceMemory) {
+    VkMemoryRequirements memoryRequirements;
+    memoryRequirements.size = 0;
+    memoryRequirements.memoryTypeBits = -1;
+    memoryRequirements.alignment = 0;
+    for (int i = 0; i < imageCount; i++) {
+        VkMemoryRequirements currentRequirement;
+        vkGetImageMemoryRequirements(device.logical, images[i].handle, &currentRequirement);
+
+        // Add extra memory for the alignment (if needed), not sure if this is necessary may have misunderstood
+        memoryRequirements.size +=
+                (currentRequirement.alignment - memoryRequirements.size % currentRequirement.alignment) %
+                currentRequirement.alignment;
+
+        // Update image's offset
+        images[i].offset = memoryRequirements.size;
+
+        memoryRequirements.size += currentRequirement.size;
+        memoryRequirements.memoryTypeBits &= currentRequirement.memoryTypeBits;
+    }
+
+    deviceMemory->allocateMemory(device, memoryRequirements, memoryPropertyFlags);
+    // deviceMemory->bindBuffers(device, bufferCount, buffers);
+
+    std::cout << "Whatt" << std::endl;
+    for (int i = 0; i < imageCount; i++) {
+        std::cout << "Hello" << std::endl;
+        vkBindImageMemory(device.logical, images[i].handle, deviceMemory->getHandle(), images[i].offset);
+    }
+}
+
 HostVisibleDeviceMemory
 DeviceMemory::createHostVisibleMemory(DeviceInfo device, int bufferCount, Buffer *buffers) {
     HostVisibleDeviceMemory deviceMemory;
@@ -30,7 +69,7 @@ void DeviceMemory::allocateBufferMemory(DeviceInfo device, int bufferCount, Buff
         VkMemoryRequirements currentRequirement;
         vkGetBufferMemoryRequirements(device.logical, buffers[i].getHandle(), &currentRequirement);
 
-        // Add extra memory for the alignment (if needed)
+        // Add extra memory for the alignment (if needed), not sure if this is necessary may have misunderstood
         memoryRequirements.size +=
                 (currentRequirement.alignment - memoryRequirements.size % currentRequirement.alignment) %
                 currentRequirement.alignment;
@@ -38,7 +77,7 @@ void DeviceMemory::allocateBufferMemory(DeviceInfo device, int bufferCount, Buff
         // Update buffers offset
         buffers[i].setMemoryOffset(memoryRequirements.size);
 
-        memoryRequirements.size += + currentRequirement.size;
+        memoryRequirements.size += currentRequirement.size;
         memoryRequirements.memoryTypeBits &= currentRequirement.memoryTypeBits;
     }
 

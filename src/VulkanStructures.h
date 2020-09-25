@@ -185,6 +185,24 @@ namespace VKSTRUCT {
         return info;
     }
 
+    inline static VkPipelineDepthStencilStateCreateInfo
+    pipelineDepthStencilStateCreateInfo() {
+        VkPipelineDepthStencilStateCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = 0;
+        info.depthTestEnable = VK_TRUE;
+        info.depthWriteEnable = VK_TRUE;
+        info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+        info.depthBoundsTestEnable = VK_FALSE;
+        info.stencilTestEnable = VK_FALSE;
+        info.front = {};
+        info.back = {};
+        info.minDepthBounds = 0.0f;
+        info.maxDepthBounds = 1.0f;
+        return info;
+    }
+
     inline static VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
             const VkRenderPass renderPass,
             const VkPipelineVertexInputStateCreateInfo *vertexInputStateCreateInfo,
@@ -196,7 +214,8 @@ namespace VKSTRUCT {
             const VkPipelineLayout pipelineLayout,
             const VkPipelineDynamicStateCreateInfo *dynamicStateCreateInfo,
             const uint32_t shaderStageCount,
-            const VkPipelineShaderStageCreateInfo *shaderStageCreateInfo) {
+            const VkPipelineShaderStageCreateInfo *shaderStageCreateInfo,
+            const VkPipelineDepthStencilStateCreateInfo *depthStencilStateCreateInfo) {
         VkGraphicsPipelineCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         info.pNext = nullptr;
@@ -212,7 +231,7 @@ namespace VKSTRUCT {
         info.pMultisampleState = multisampleStateCreateInfo;
         info.pColorBlendState = colorBlendStateCreateInfo;
         info.layout = pipelineLayout;
-        info.pDepthStencilState = nullptr;
+        info.pDepthStencilState = depthStencilStateCreateInfo;
         info.pDynamicState = dynamicStateCreateInfo;
         info.pTessellationState = nullptr;
         info.stageCount = 2;
@@ -338,7 +357,7 @@ namespace VKSTRUCT {
     }
 
     inline static VkAttachmentDescription
-    attachmentDescription(VkFormat format, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED) {
+    colorAttachmentDescription(VkFormat format, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED) {
         VkAttachmentDescription description;
         description.format = format;
         description.flags = 0;
@@ -352,16 +371,32 @@ namespace VKSTRUCT {
         return description;
     }
 
+    inline static VkAttachmentDescription
+    depthAttachmentDescription(VkFormat format) {
+        VkAttachmentDescription description;
+        description.format = format;
+        description.flags = 0;
+        description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        description.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        description.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        description.samples = VK_SAMPLE_COUNT_1_BIT;
+        return description;
+    }
+
     inline static VkAttachmentReference attachmentReference(uint32_t attachment, VkImageLayout layout) {
         VkAttachmentReference reference;
-        reference.attachment = 0;
+        reference.attachment = attachment;
         reference.layout = layout;
         return reference;
     }
 
     inline static VkSubpassDescription subpassDescription(
             uint32_t inputAttachmentCount, VkAttachmentReference *inputAttachments,
-            uint32_t colorAttachmentCount, VkAttachmentReference *colorAttachments) {
+            uint32_t colorAttachmentCount, VkAttachmentReference *colorAttachments,
+            VkAttachmentReference *depthStencilAttachment) {
         VkSubpassDescription description;
         description.flags = 0;
         description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -370,7 +405,7 @@ namespace VKSTRUCT {
         description.colorAttachmentCount = colorAttachmentCount;
         description.pColorAttachments = colorAttachments;
         description.pResolveAttachments = nullptr;
-        description.pDepthStencilAttachment = nullptr;
+        description.pDepthStencilAttachment = depthStencilAttachment;
         description.preserveAttachmentCount = 0;
         description.pPreserveAttachments = nullptr;
         return description;
@@ -605,13 +640,13 @@ namespace VKSTRUCT {
         return info;
     }
 
-    inline static VkImageCreateInfo imageCreateInfo(uint32_t width, uint32_t height) {
+    inline static VkImageCreateInfo imageCreateInfo(uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlagBits imageUsageFlagBits) {
         VkImageCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         info.pNext = nullptr;
         info.flags = 0;
         info.imageType = VK_IMAGE_TYPE_2D;
-        info.format = VK_FORMAT_R8G8B8A8_UNORM; //Todo: Fix format hardcode
+        info.format = format; // VK_FORMAT_R8G8B8A8_UNORM; //Todo: Fix format hardcode
         info.extent.width = width;
         info.extent.height = height;
         info.extent.depth = 1;
@@ -620,7 +655,7 @@ namespace VKSTRUCT {
         info.mipLevels = 1;
         info.samples = VK_SAMPLE_COUNT_1_BIT;
         info.tiling = VK_IMAGE_TILING_OPTIMAL;
-        info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        info.usage = imageUsageFlagBits; // VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
         info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         info.queueFamilyIndexCount = 0;
@@ -637,19 +672,19 @@ namespace VKSTRUCT {
         return info;
     }
 
-    inline static VkImageViewCreateInfo imageViewCreateInfo(VkImage image) {
+    inline static VkImageViewCreateInfo imageViewCreateInfo(VkImage image, VkFormat format, VkImageAspectFlags aspectMask) {
         VkImageViewCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         info.pNext = nullptr;
         info.flags = 0;
         info.image = image;
-        info.format = VK_FORMAT_R8G8B8A8_UNORM; //Todo: Fix format hardcode
+        info.format = format; // VK_FORMAT_R8G8B8A8_UNORM; //Todo: Fix format hardcode
         info.viewType = VK_IMAGE_VIEW_TYPE_2D;
         info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
         info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
         info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
         info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-        info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        info.subresourceRange.aspectMask = aspectMask; // VK_IMAGE_ASPECT_COLOR_BIT;
         info.subresourceRange.layerCount = 1;
         info.subresourceRange.baseArrayLayer = 0;
         info.subresourceRange.levelCount = 1;

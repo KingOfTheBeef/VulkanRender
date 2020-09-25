@@ -14,7 +14,8 @@ int PipelineBuilder::buildPipeline(DeviceInfo device, VkRenderPass renderPass, V
     VkGraphicsPipelineCreateInfo createInfo = VKSTRUCT::graphicsPipelineCreateInfo(
             renderPass, &vertexInputStateCreateInfo, &this->assemblyStateCreateInfo, &this->viewportStateCreateInfo,
             &this->rasterizationStateCreateInfo, &this->multisampleStateCreateInfo, &this->colorBlendStateCreateInfo,
-            pipelineLayout, &this->dynamicStateCreateInfo, 2, shaderStageCreateInfo);
+            pipelineLayout, &this->dynamicStateCreateInfo, 2, shaderStageCreateInfo,
+            (this->depthStencilOn)?&this->depthStencilStateCreateInfo:nullptr );
 
     if (vkCreateGraphicsPipelines(device.logical, 0, 1, &createInfo, nullptr, pipeline) != VK_SUCCESS) {
         std::cout << "Failed to do so" << std::endl;
@@ -30,5 +31,6 @@ PipelineBuilder::PipelineBuilder() :
     colorBlendAttachmentState(VKSTRUCT::pipelineColorBlendAttachmentState()),
     colorBlendStateCreateInfo(VKSTRUCT::pipelineColorBlendStateCreateInfo(1, &colorBlendAttachmentState)),
     dynamicStates {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR},
-    dynamicStateCreateInfo(VKSTRUCT::pipelineDynamicStateCreateInfo(2, dynamicStates)) {
+    dynamicStateCreateInfo(VKSTRUCT::pipelineDynamicStateCreateInfo(2, dynamicStates)),
+    depthStencilOn(false) {
 }

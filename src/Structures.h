@@ -9,9 +9,10 @@
 #include <vulkan/vulkan.h>
 
 struct Image {
-    VkImage handle;
+    VkImage     handle;
     VkImageView view;
-    VkDeviceMemory memory;
+    VkFormat    format;
+    uint32_t    offset;
 };
 
 struct CombinedImageSampler {

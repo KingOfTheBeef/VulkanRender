@@ -33,6 +33,7 @@ VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceSupportKHR )
 VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceCapabilitiesKHR )
 VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceFormatsKHR )
 VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfacePresentModesKHR )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceFormatProperties )
 VK_INSTANCE_FUNCTION( vkEnumerateDeviceExtensionProperties )
 VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceMemoryProperties )
 #ifdef VK_USE_PLATFORM_WIN32_KHR

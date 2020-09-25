@@ -45,6 +45,11 @@ private:
         Pipeline backdrop;
     } pipelines;
 
+    struct {
+        Image           image;
+        DeviceMemory    memory;
+    } depth;
+
     VkRenderPass            renderPass;
     VkCommandPool           cmdPool;
     static const uint32_t   virtualFrameCount = 3;
@@ -65,6 +70,7 @@ private:
     DescriptorSet           descriptorSets[descriptorSetCount];
 
     CombinedImageSampler    texture;
+    VkDeviceMemory          textureMemory;
 
 private:
     int createImage(DeviceInfo device, uint32_t width, uint32_t height, VkImage *image);
@@ -81,7 +87,7 @@ private:
 
     int initShaderModule(VkDevice device, const char *filename, VkShaderModule *shaderModule);
 
-    int initGraphicPipeline(DeviceInfo device);
+    int createPipelines(DeviceInfo device);
 
     int initVirtualFrames(DeviceInfo device);
 
@@ -102,6 +108,11 @@ private:
     int updateStagingBuffer(DeviceInfo device, const void *data, size_t size);
 
     int submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferAccessFlags, Buffer dstBuffer, uint64_t sizeOfData);
+
+    int initDepthTestingResources(DeviceInfo device, uint32_t width, uint32_t height);
+
+
+    static VkFormat getSuitableFormat(DeviceInfo device, uint32_t candidateCount, VkFormat *candidateFormats, VkFormatFeatureFlagBits requiredFormatFeatures);
 };
 
 #endif //DYNAMICLINK_RENDERER_H

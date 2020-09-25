@@ -17,12 +17,17 @@ class DeviceMemory {
 private:
     static void allocateBufferMemory(DeviceInfo device, int bufferCount, Buffer *buffers,
                                      VkMemoryPropertyFlags memoryPropertyFlags, DeviceMemory *deviceMemory);
+    static void allocateImageMemory(DeviceInfo device, int imageCount, Image *images,
+                                           VkMemoryPropertyFlags memoryPropertyFlags, DeviceMemory *deviceMemory);
 public:
     // Create host visible memory
     static HostVisibleDeviceMemory createHostVisibleMemory(DeviceInfo device, int bufferCount, Buffer *buffers);
-// Create generic memory
+    // Create memory for buffers
     static DeviceMemory createDeviceMemory(DeviceInfo device, int bufferCount, Buffer *buffers,
                                            VkMemoryPropertyFlags memoryPropertyFlags);
+    // Create memory for images
+    static DeviceMemory createDeviceMemory(DeviceInfo device, int imageCount, Image *images,
+                                                  VkMemoryPropertyFlags memoryPropertyFlags);
 
     DeviceMemory();
     void free(DeviceInfo device);

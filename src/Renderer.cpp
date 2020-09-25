@@ -12,9 +12,15 @@
 #include "DeviceMemory.h"
 
 int Renderer::initRenderPass(VkDevice device, VkFormat format) {
-    VkAttachmentDescription attachmentDescriptions = VKSTRUCT::attachmentDescription(format);
-    VkAttachmentReference colorAttachmentReferences = VKSTRUCT::attachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    VkSubpassDescription subpassDescriptions = VKSTRUCT::subpassDescription(0, nullptr, 1, &colorAttachmentReferences);
+    VkAttachmentDescription attachments[2] = {
+            VKSTRUCT::colorAttachmentDescription(format),
+            VKSTRUCT::depthAttachmentDescription(this->depth.image.format)
+    };
+
+    VkAttachmentReference colorAttachmentRef = VKSTRUCT::attachmentReference(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkAttachmentReference depthAttachmentRef = VKSTRUCT::attachmentReference(1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+    VkSubpassDescription subpassDescriptions = VKSTRUCT::subpassDescription(0, nullptr, 1, &colorAttachmentRef, &depthAttachmentRef);
 
     VkSubpassDependency subpassDependencies[] = {
             VKSTRUCT::subpassDependency(VK_SUBPASS_EXTERNAL, 0, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
@@ -25,7 +31,7 @@ int Renderer::initRenderPass(VkDevice device, VkFormat format) {
                                         VK_ACCESS_MEMORY_READ_BIT, VK_DEPENDENCY_BY_REGION_BIT)
     };
 
-    VkRenderPassCreateInfo createInfo = VKSTRUCT::renderPassCreateInfo(1, &attachmentDescriptions, 2, subpassDependencies, 1, &subpassDescriptions);
+    VkRenderPassCreateInfo createInfo = VKSTRUCT::renderPassCreateInfo(2, attachments, 2, subpassDependencies, 1, &subpassDescriptions);
     if (vkCreateRenderPass(device, &createInfo, nullptr, &this->renderPass) != VK_SUCCESS) {
         std::cout << "Failed to create render pass" << std::endl;
         return -1;
@@ -89,7 +95,7 @@ void Renderer::clean(DeviceInfo device) {
     this->swapchain.clean(device);
 }
 
-int Renderer::initGraphicPipeline(DeviceInfo device) {
+int Renderer::createPipelines(DeviceInfo device) {
 
     /// Cube Pipeline ///
 
@@ -120,7 +126,7 @@ int Renderer::initGraphicPipeline(DeviceInfo device) {
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = VKSTRUCT::pipelineVertexInputStateCreateInfo(2, vertexInputBindingDescription, 6, vertexInputAttributeDescription);
 
     PipelineBuilder::createPipelineLayout(device, Renderer::descriptorSetCount, &this->descriptorSets[0].layout, &this->pipelines.cubes.layout);
-    pipelineBuilder.buildPipeline(device, this->renderPass, this->pipelines.cubes.layout, vertexInputStateCreateInfo, vertexShader, fragmentShader, &this->pipelines.cubes.handle);
+    pipelineBuilder.setDepthStencil(VKSTRUCT::pipelineDepthStencilStateCreateInfo())->buildPipeline(device, this->renderPass, this->pipelines.cubes.layout, vertexInputStateCreateInfo, vertexShader, fragmentShader, &this->pipelines.cubes.handle);
 
     vkDestroyShaderModule(device.logical, vertexShader, nullptr);
     vkDestroyShaderModule(device.logical, fragmentShader, nullptr);
@@ -145,8 +151,8 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
     if (virtualFrame->framebuffer != VK_NULL_HANDLE) {
         vkDestroyFramebuffer(device.logical, virtualFrame->framebuffer, nullptr);
     }
-
-    VkFramebufferCreateInfo framebufferCreateInfo = VKSTRUCT::framebufferCreateInfo(this->renderPass, 1, imageView, extent.width, extent.height);
+    VkImageView attachments[2] = {*imageView, this->depth.image.view};
+    VkFramebufferCreateInfo framebufferCreateInfo = VKSTRUCT::framebufferCreateInfo(this->renderPass, 2, attachments, extent.width, extent.height);
 
     vkCreateFramebuffer(device.logical, &framebufferCreateInfo, nullptr, &virtualFrame->framebuffer);
 
@@ -165,7 +171,9 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
                              0, 0, nullptr, 0, nullptr, 1, &memoryBarrier);
     }
 
-    VkClearValue clearColor = {1.0f, 0.8f, 0.4f, 0.0f};
+    VkClearValue clearColor[2] = {};
+    clearColor[0].color = {1.0f, 0.8f, 0.4f, 0.0f};
+    clearColor[1].depthStencil = {1.0f, 0};
 
     VkViewport viewport = VKSTRUCT::viewport(extent.width, extent.height, 0, 0, 0.0f, 1.0f);
 
@@ -174,7 +182,7 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
     vkCmdSetViewport(virtualFrame->cmdBuffer, 0, 1, &viewport);
     vkCmdSetScissor(virtualFrame->cmdBuffer, 0, 1, &rect);
 
-    VkRenderPassBeginInfo renderPassBeginInfo = VKSTRUCT::renderPassBeginInfo(virtualFrame->framebuffer, this->renderPass, extent, 1, &clearColor);
+    VkRenderPassBeginInfo renderPassBeginInfo = VKSTRUCT::renderPassBeginInfo(virtualFrame->framebuffer, this->renderPass, extent, 2, clearColor);
 
     vkCmdBeginRenderPass(virtualFrame->cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -280,11 +288,14 @@ int Renderer::initCommandPool(DeviceInfo device) {
 
 int Renderer::initRenderer(DeviceInfo device, VkSurfaceKHR surface) {
     this->swapchain.initSwapchain(device, surface);
+    std::cout << "WHaytatduw" << std::endl;
+    this->initDepthTestingResources(device, this->swapchain.getExtent().width, this->swapchain.getExtent().height);
+    std::cout << "YOOOOOOOO" << std::endl;
     this->initRenderPass(device.logical, this->swapchain.getSurfaceFormat().format);
     this->initCommandPool(device);
     this->initVirtualFrames(device);
     this->initResources(device, "img/texture.png", &this->texture);
-    this->initGraphicPipeline(device);
+    this->createPipelines(device);
     return 0;
 }
 
@@ -301,7 +312,10 @@ Renderer::Renderer() {
 }
 
 int Renderer::createImage(DeviceInfo device, uint32_t width, uint32_t height, VkImage *image) {
-    VkImageCreateInfo imageCreateInfo = VKSTRUCT::imageCreateInfo(width, height);
+    VkImageCreateInfo imageCreateInfo = VKSTRUCT::imageCreateInfo(width, height, VK_FORMAT_R8G8B8A8_UNORM,
+                                                                  static_cast<VkImageUsageFlagBits>(
+                                                                          VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                                                                          VK_IMAGE_USAGE_SAMPLED_BIT));
     return vkCreateImage(device.logical, &imageCreateInfo, nullptr, image) != VK_SUCCESS;
 }
 
@@ -335,7 +349,7 @@ int Renderer::allocateImageMemory(DeviceInfo device, VkImage image, VkMemoryProp
 }
 
 int Renderer::createImageView(DeviceInfo device, VkImage image, VkImageView *imageView) {
-    VkImageViewCreateInfo createInfo = VKSTRUCT::imageViewCreateInfo(image);
+    VkImageViewCreateInfo createInfo = VKSTRUCT::imageViewCreateInfo(image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
     vkCreateImageView(device.logical, &createInfo, nullptr, imageView);
     return 0;
 }
@@ -531,8 +545,8 @@ int Renderer::initDescriptorSet(DeviceInfo device, DescriptorSet *descriptorSet)
 
 int Renderer::initTexture(DeviceInfo device, uint32_t width, uint32_t height, Image *texture) {
     createImage(device, width, height, &texture->handle);
-    allocateImageMemory(device, texture->handle, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &texture->memory);
-    vkBindImageMemory(device.logical, texture->handle, texture->memory, 0);
+    allocateImageMemory(device, texture->handle, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &this->textureMemory);
+    vkBindImageMemory(device.logical, texture->handle, this->textureMemory, 0);
     createImageView(device, texture->handle, &texture->view);
     return 0;
 }
@@ -574,5 +588,30 @@ int Renderer::submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferA
     vkEndCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer);
     VkSubmitInfo submitInfo = VKSTRUCT::submitInfo(1, &this->virtualFrames[this->currentVirtualFrame].cmdBuffer, 0, nullptr, 0, nullptr, nullptr);
     vkQueueSubmit(device.graphicQueue, 1, &submitInfo, this->virtualFrames[this->currentVirtualFrame].fence);
+    return 0;
+}
+
+VkFormat Renderer::getSuitableFormat(DeviceInfo device, uint32_t candidateCount, VkFormat *candidateFormats, VkFormatFeatureFlagBits requiredFormatFeatures) {
+    for (uint32_t i = 0; i < candidateCount; i++) {
+        VkFormatProperties properties;
+        vkGetPhysicalDeviceFormatProperties(device.physical, candidateFormats[i], &properties);
+
+        if ((properties.optimalTilingFeatures & requiredFormatFeatures) == requiredFormatFeatures) {
+            return candidateFormats[i];
+        }
+    }
+
+    throw std::runtime_error("No suitable formats available");
+}
+
+int Renderer::initDepthTestingResources(DeviceInfo device, uint32_t width, uint32_t height) {
+    VkFormat candidateFormats[3] = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
+    this->depth.image.format = getSuitableFormat(device,3, candidateFormats, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    VkImageCreateInfo imageCreateInfo = VKSTRUCT::imageCreateInfo(width, height, this->depth.image.format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    vkCreateImage(device.logical, &imageCreateInfo, nullptr, &this->depth.image.handle);
+    this->depth.memory = DeviceMemory::createDeviceMemory(device, 1, &this->depth.image, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    VkImageViewCreateInfo imageViewCreateInfo = VKSTRUCT::imageViewCreateInfo(this->depth.image.handle, this->depth.image.format, VK_IMAGE_ASPECT_DEPTH_BIT);
+    vkCreateImageView(device.logical, &imageViewCreateInfo, nullptr, &this->depth.image.view);
+
     return 0;
 }

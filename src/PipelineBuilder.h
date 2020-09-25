@@ -18,6 +18,10 @@ private:;
     VkPipelineMultisampleStateCreateInfo    multisampleStateCreateInfo;
     VkPipelineColorBlendAttachmentState     colorBlendAttachmentState;
     VkPipelineColorBlendStateCreateInfo     colorBlendStateCreateInfo;
+
+    VkPipelineDepthStencilStateCreateInfo   depthStencilStateCreateInfo;
+    bool                                    depthStencilOn;
+
     VkDynamicState dynamicStates[2];
     VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo;
 
@@ -28,6 +32,9 @@ public:
     }
 
     PipelineBuilder();
+    PipelineBuilder* setDepthStencil(VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo) { this->depthStencilStateCreateInfo = depthStencilStateCreateInfo; this->depthStencilOn = true; return this; };
+    PipelineBuilder* disableDepthStencil() { this->depthStencilOn = false; return this; };
+
     int buildPipeline(DeviceInfo device, VkRenderPass renderPass, VkPipelineLayout pipelineLayout, VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo, VkShaderModule vertexShader, VkShaderModule fragmentShader, VkPipeline *pipeline);
 };
 
