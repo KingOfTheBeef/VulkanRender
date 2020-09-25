@@ -234,7 +234,7 @@ namespace VKSTRUCT {
         info.pDepthStencilState = depthStencilStateCreateInfo;
         info.pDynamicState = dynamicStateCreateInfo;
         info.pTessellationState = nullptr;
-        info.stageCount = 2;
+        info.stageCount = shaderStageCount;
         info.pStages = shaderStageCreateInfo;
         info.subpass = 0;
         return info;

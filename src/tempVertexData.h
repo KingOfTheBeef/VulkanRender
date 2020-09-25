@@ -13,12 +13,12 @@ namespace Data {
     namespace Cube {
 
         static float cubeModel[] = {
-                // Top                      // Colours
+                // Bottom                   // Colours
                 -5.0f, 10.0f, 5.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,  // 0
                 5.0f, 10.0f, 5.0f, 1.0f,    0.0f, 1.0f, 0.0f, 0.0f,  // 1
                 5.0f, 10.0f, -5.0f, 1.0f,   0.0f, 0.0f, 1.0f, 0.0f,  // 2
                 -5.0f, 10.0f, -5.0f, 1.0f,  1.0f, 1.0f, 1.0f, 0.0f,  // 3
-                // Bottom
+                // Top
                 -5.0f, 0.0f, 5.0f, 1.0f,    0.5f, 0.65f, 0.0f, 0.0f,  // 4
                 5.0f, 0.0f, 5.0f, 1.0f,     0.21f, 0.1f, 0.34f, 0.0f,  // 5
                 5.0f, 0.0f, -5.0f, 1.0f,    1.f, 1.0f, 0.0f, 0.0f,  // 6
@@ -32,17 +32,17 @@ namespace Data {
 
         static uint16_t cubeIndex[] = {
                 // Top Face
-                0, 1, 2, 1, 2, 3,
+                4, 5, 6, 4, 6, 7,
                 // Front face
-                3, 2, 6, 3, 6, 7,
+                7, 3, 2, 7, 6, 2,
                 // Left face
-                0, 3, 4, 3, 4, 7,
+                7, 0, 4, 3, 0, 7,
                 // Right face
-                2, 1, 5, 2, 5, 6,
+                6, 5, 1, 6, 1, 2,
                 // Back face
-                0, 1, 2, 1, 2, 5,
+                4, 5, 1, 4, 1, 0,
                 // Bottom face
-                4, 5, 6, 4, 6, 7
+                0, 3, 2, 0, 2, 1
         };
         static int cubeIndexCount = 36;
 
