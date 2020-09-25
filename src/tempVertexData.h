@@ -50,11 +50,12 @@ namespace Data {
                 GMATH::identityMatrix(),
                 GMATH::rotateMatrix(GMATH::vec3(1.0f, 1.0f, 0.5f), 180.0f, GMATH::translateMatrix(GMATH::vec3(10.0f, -20.0f, 0.0f))),
                 GMATH::rotateMatrix(GMATH::vec3(1.0f, 1.0f, 0.5f), 180.0f, GMATH::translateMatrix(GMATH::vec3(-10.0f, 20.0f, 0.0f))),
-                GMATH::rotateMatrix(GMATH::vec3(1.0f, 7.0f, 0.3f), 180.0f, GMATH::translateMatrix(GMATH::vec3(-10.0f, 0.0f, 0.0f))),
-                GMATH::rotateMatrix(GMATH::vec3(5.0f, 1.0f, 0.5f), 45.0f, GMATH::translateMatrix(GMATH::vec3(15.0f, 0.0f, 0.0f)))
+                GMATH::rotateMatrix(GMATH::vec3(1.0f, 7.0f, 0.3f), 180.0f, GMATH::translateMatrix(GMATH::vec3(-30.0f, 0.0f, 0.0f))),
+                GMATH::rotateMatrix(GMATH::vec3(5.0f, 1.0f, 0.5f), 45.0f, GMATH::translateMatrix(GMATH::vec3(15.0f, 0.0f, 0.0f))),
+                GMATH::rotateMatrix(GMATH::vec3(0.0f, 0.2f, 0.7f), 78.0f, GMATH::translateMatrix(GMATH::vec3(-20.0f, -20.0f, 0.0f)))
         };
 
-        static int instanceCount = 5;
+        static int instanceCount = 6;
 
         static float instanceStride = sizeof(GMATH::mat4);
 

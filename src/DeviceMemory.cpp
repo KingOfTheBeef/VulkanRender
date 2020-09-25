@@ -44,9 +44,7 @@ void DeviceMemory::allocateImageMemory(DeviceInfo device, int imageCount, Image 
     deviceMemory->allocateMemory(device, memoryRequirements, memoryPropertyFlags);
     // deviceMemory->bindBuffers(device, bufferCount, buffers);
 
-    std::cout << "Whatt" << std::endl;
     for (int i = 0; i < imageCount; i++) {
-        std::cout << "Hello" << std::endl;
         vkBindImageMemory(device.logical, images[i].handle, deviceMemory->getHandle(), images[i].offset);
     }
 }

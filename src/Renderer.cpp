@@ -288,9 +288,7 @@ int Renderer::initCommandPool(DeviceInfo device) {
 
 int Renderer::initRenderer(DeviceInfo device, VkSurfaceKHR surface) {
     this->swapchain.initSwapchain(device, surface);
-    std::cout << "WHaytatduw" << std::endl;
     this->initDepthTestingResources(device, this->swapchain.getExtent().width, this->swapchain.getExtent().height);
-    std::cout << "YOOOOOOOO" << std::endl;
     this->initRenderPass(device.logical, this->swapchain.getSurfaceFormat().format);
     this->initCommandPool(device);
     this->initVirtualFrames(device);
@@ -552,7 +550,14 @@ int Renderer::initTexture(DeviceInfo device, uint32_t width, uint32_t height, Im
 }
 
 int Renderer::windowResize(DeviceInfo device, VkSurfaceKHR surface) {
+    // Clean up depth image
+    vkDestroyImageView(device.logical, this->depth.image.view, nullptr);
+    vkDestroyImage(device.logical, this->depth.image.handle, nullptr);
+    this->depth.memory.free(device);
+
+    // Recreate swapchain and depth image
     this->swapchain.recreateSwapchain(device, surface);
+    this->initDepthTestingResources(device, this->swapchain.getExtent().width, this->swapchain.getExtent().height);
     return 0;
 }
 
