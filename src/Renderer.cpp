@@ -119,11 +119,14 @@ int Renderer::createPipelines(DeviceInfo device) {
 
     // Instance
     // We pass each column of our 4by4 mat as a separate vec4
+    vertexInputAttributeDescription[2] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 2, Data::Cube::instanceOffset);
+    /*
     vertexInputAttributeDescription[2] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 2, Data::Cube::instanceOffsets[0]);
     vertexInputAttributeDescription[3] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 3, Data::Cube::instanceOffsets[1]);
     vertexInputAttributeDescription[4] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 4, Data::Cube::instanceOffsets[2]);
     vertexInputAttributeDescription[5] = VKSTRUCT::vertexInputAttributeDescription(1, VK_FORMAT_R32G32B32A32_SFLOAT, 5, Data::Cube::instanceOffsets[3]);
-    VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = VKSTRUCT::pipelineVertexInputStateCreateInfo(2, vertexInputBindingDescription, 6, vertexInputAttributeDescription);
+    */
+    VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = VKSTRUCT::pipelineVertexInputStateCreateInfo(2, vertexInputBindingDescription, 3, vertexInputAttributeDescription);
 
     PipelineBuilder::createPipelineLayout(device, Renderer::descriptorSetCount, &this->descriptorSets[0].layout, &this->pipelines.cubes.layout);
     pipelineBuilder.setDepthStencil(VKSTRUCT::pipelineDepthStencilStateCreateInfo())->buildPipeline(device, this->renderPass, this->pipelines.cubes.layout, vertexInputStateCreateInfo, vertexShader, fragmentShader, &this->pipelines.cubes.handle);
@@ -464,7 +467,7 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     Buffer deviceLocalBuffers[5];
     deviceLocalBuffers[0] = this->vertexBuffer  = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::cubeModel));
     deviceLocalBuffers[1] = this->indexBuffer   = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::cubeIndex));
-    deviceLocalBuffers[2] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::instanceViews));
+    deviceLocalBuffers[2] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::quaternionRotations));
 
     deviceLocalBuffers[3] = this->projectionBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
     // Buffer modelMatrix = deviceLocalBuffers[3] = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16 * 2);
@@ -519,8 +522,8 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     vkDeviceWaitIdle(device.logical);
 
     // Update instance buffer
-    updateStagingBuffer(device, Data::Cube::instanceViews, sizeof(Data::Cube::instanceViews));
-    submitStagingBuffer(device, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, this->instanceBuffer, sizeof(Data::Cube::instanceViews));
+    updateStagingBuffer(device, Data::Cube::quaternionRotations, sizeof(Data::Cube::quaternionRotations));
+    submitStagingBuffer(device, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, this->instanceBuffer, sizeof(Data::Cube::quaternionRotations));
     vkDeviceWaitIdle(device.logical);
 
     // Update index buffer

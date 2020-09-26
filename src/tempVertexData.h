@@ -55,6 +55,21 @@ namespace Data {
                 GMATH::rotateMatrix(GMATH::vec3(0.0f, 0.2f, 0.7f), 78.0f, GMATH::translateMatrix(GMATH::vec3(-20.0f, -20.0f, 0.0f)))
         };
 
+        static GMATH::vec4 quaternionRotations[] = {
+                GMATH::vec4(0.26f, 0.00f, 0.79f, 0.55f),
+                GMATH::vec4(0.92f, 0.00f, 0.40f, 0.00f),
+                GMATH::vec4(0.21f, 0.57f, 0.65f, 0.45f)
+        };
+
+        static int instanceCount = 1;
+
+        static float instanceStride = sizeof(GMATH::vec4);
+
+        static int instanceOffset = {
+                0
+        };
+
+        /*
         static int instanceCount = 6;
 
         static float instanceStride = sizeof(GMATH::mat4);
@@ -62,6 +77,7 @@ namespace Data {
         static int instanceOffsets[4] = {
                 sizeof(float[4]) * 0, sizeof(float[4]) * 1, sizeof(float[4]) * 2, sizeof(float[4]) * 3
         };
+         */
 
     }
 

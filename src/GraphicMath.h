@@ -13,6 +13,7 @@
 namespace GMATH {
     // Abstract away from glm types
     typedef glm::mat4 mat4;
+    typedef glm::vec4 vec4;
     typedef glm::vec3 vec3;
 
     static mat4 identityMatrix() {
