@@ -243,6 +243,11 @@ bool Core::checkPhysicalDeviceExtensions(VkPhysicalDevice physicalDevice, const 
 }
 
 void Core::draw() {
+  // Only draw after interval
+  if (clock() - this->lastDrawCall < this->ticks_per_frame) {
+      return;
+  }
+
   switch (renderer.draw(this->deviceInfo)) {
     case -1:
       windowResize();
@@ -250,6 +255,9 @@ void Core::draw() {
     default:
       break;
   }
+
+  // Update the time of last draw call
+  this->lastDrawCall = clock();
 }
 
 // Function which sets the physical device and queue indexes
