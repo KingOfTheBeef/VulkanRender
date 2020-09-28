@@ -3,3 +3,5 @@ cmake-build-debug
 text
 CoolGuides.txt
 src/img
+src/Scene.h
+src/Scene.cpp

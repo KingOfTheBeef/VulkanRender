@@ -78,14 +78,15 @@ void Renderer::clean(DeviceInfo device) {
         }
     }
 
-    this->stagingBuffer.destroy(device);
+    this->staging.buffer.destroy(device);
+    this->staging.memory.free(device);
+
     this->vertexBuffer.destroy(device);
     this->instanceBuffer.destroy(device);
     this->indexBuffer.destroy(device);
     this->projectionBuffer.destroy(device);
 
     this->deviceLocalMemory.free(device);
-    this->hostVisibleMemory.free(device);
 
     vkDestroyCommandPool(device.logical, this->cmdPool, nullptr);
     vkDestroyRenderPass(device.logical, this->renderPass, nullptr);
@@ -174,16 +175,16 @@ Renderer::prepareVirtualFrame(DeviceInfo device, VirtualFrame *virtualFrame, VkE
                              0, 0, nullptr, 0, nullptr, 1, &memoryBarrier);
     }
 
-    VkClearValue clearColor[2] = {};
-    clearColor[0].color = {1.0f, 0.8f, 0.4f, 0.0f};
-    clearColor[1].depthStencil = {1.0f, 0};
 
     VkViewport viewport = VKSTRUCT::viewport(extent.width, extent.height, 0, 0, 0.0f, 1.0f);
-
     VkRect2D rect = VKSTRUCT::rect2D({0, 0}, extent);
 
     vkCmdSetViewport(virtualFrame->cmdBuffer, 0, 1, &viewport);
     vkCmdSetScissor(virtualFrame->cmdBuffer, 0, 1, &rect);
+
+    VkClearValue clearColor[2] = {};
+    clearColor[0].color = {1.0f, 0.8f, 0.4f, 0.0f};
+    clearColor[1].depthStencil = {1.0f, 0};
 
     VkRenderPassBeginInfo renderPassBeginInfo = VKSTRUCT::renderPassBeginInfo(virtualFrame->framebuffer, this->renderPass, extent, 2, clearColor);
 
@@ -301,9 +302,9 @@ int Renderer::initRenderer(DeviceInfo device, VkSurfaceKHR surface) {
 }
 
 int Renderer::updateStagingBuffer(DeviceInfo device, const void *data, size_t size) {
-    void *ptrBuffer = this->hostVisibleMemory.getMappedMemory();
+    void *ptrBuffer = this->staging.memory.getMappedMemory();
     memcpy(ptrBuffer, data, size);
-    VkMappedMemoryRange memoryRange = VKSTRUCT::mappedMemoryRange(this->hostVisibleMemory.getHandle());
+    VkMappedMemoryRange memoryRange = VKSTRUCT::mappedMemoryRange(this->staging.memory.getHandle());
     vkFlushMappedMemoryRanges(device.logical, 1, &memoryRange);
     return 0;
 }
@@ -378,7 +379,7 @@ int Renderer::updateTexture(DeviceInfo device, ImageFile imageFile, VkImage imag
                          0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
 
     VkBufferImageCopy bufferImageCopy = VKSTRUCT::bufferImageCopy({imageFile.width, imageFile.height, 1});
-    vkCmdCopyBufferToImage(virtualFrame.cmdBuffer, this->stagingBuffer.getHandle(), image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+    vkCmdCopyBufferToImage(virtualFrame.cmdBuffer, this->staging.buffer.getHandle(), image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
                            &bufferImageCopy);
 
     // Alter the previous image memory barrier to move to sample layout
@@ -467,17 +468,21 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     Buffer deviceLocalBuffers[5];
     deviceLocalBuffers[0] = this->vertexBuffer  = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::cubeModel));
     deviceLocalBuffers[1] = this->indexBuffer   = Buffer::createBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::cubeIndex));
-    deviceLocalBuffers[2] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::quaternionRotations));
+    // deviceLocalBuffers[2] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(Data::Cube::quaternionRotations));
 
-    deviceLocalBuffers[3] = this->projectionBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
+    deviceLocalBuffers[2] = this->projectionBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16);
     // Buffer modelMatrix = deviceLocalBuffers[3] = Buffer::createBuffer(device, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * 16 * 2);
     // deviceLocalBuffers[4] = this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(float) * Data::instanceCount * 2);
 
-    this->stagingBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
+
+    this->instanceBuffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, sizeof(Data::Cube::quaternionRotations));
+
+    this->staging.buffer = Buffer::createBuffer(device, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 1000000);
 
     // Memory objects
-    this->hostVisibleMemory = DeviceMemory::createHostVisibleMemory(device, 1, &this->stagingBuffer);
-    this->deviceLocalMemory = DeviceMemory::createDeviceMemory(device, 4, deviceLocalBuffers,
+    this->instanceMemory = DeviceMemory::createHostVisibleMemory(device, 1, &this->instanceBuffer);
+    this->staging.memory = DeviceMemory::createHostVisibleMemory(device, 1, &this->staging.buffer);
+    this->deviceLocalMemory = DeviceMemory::createDeviceMemory(device, 3, deviceLocalBuffers,
                                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // Initialise new descriptor set
@@ -496,7 +501,7 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     // updateTexture(device, imageFile, texture->image.handle);
 
     // update uniform buffer
-    GMATH::mat4 orthoMat = GMATH::orthographicMatrix(-30, 30, -30, 30, -10, 10);
+    GMATH::mat4 orthoMat = GMATH::orthographicMatrix(-30, 30, -30, 30, -20, 10);
     updateStagingBuffer(device, &orthoMat, sizeof(orthoMat));
     submitStagingBuffer(device, VK_ACCESS_UNIFORM_READ_BIT, this->projectionBuffer, sizeof(orthoMat));
     vkDeviceWaitIdle(device.logical);
@@ -522,9 +527,16 @@ int Renderer::initResources(DeviceInfo device, const char *filename, CombinedIma
     vkDeviceWaitIdle(device.logical);
 
     // Update instance buffer
+    /*
     updateStagingBuffer(device, Data::Cube::quaternionRotations, sizeof(Data::Cube::quaternionRotations));
     submitStagingBuffer(device, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, this->instanceBuffer, sizeof(Data::Cube::quaternionRotations));
     vkDeviceWaitIdle(device.logical);
+    */
+
+    void *ptrBuffer = instanceMemory.getMappedMemory();
+    memcpy(ptrBuffer, Data::Cube::quaternionRotations, sizeof(Data::Cube::quaternionRotations));
+    VkMappedMemoryRange memoryRange = VKSTRUCT::mappedMemoryRange(instanceMemory.getHandle());
+    vkFlushMappedMemoryRanges(device.logical, 1, &memoryRange);
 
     // Update index buffer
     updateStagingBuffer(device, Data::Cube::cubeIndex, sizeof(Data::Cube::cubeIndex));
@@ -574,7 +586,7 @@ int Renderer::submitStagingBuffer(DeviceInfo device, VkAccessFlagBits dstBufferA
     vkBeginCommandBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, &beginInfo);
 
     VkBufferCopy bufferCopy = VKSTRUCT::bufferCopy(sizeOfData, 0, 0);
-    vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->stagingBuffer.getHandle(), dstBuffer.getHandle(),
+    vkCmdCopyBuffer(this->virtualFrames[this->currentVirtualFrame].cmdBuffer, this->staging.buffer.getHandle(), dstBuffer.getHandle(),
                     1, &bufferCopy);
 
     // This is undefined behaviour... will need to fix! As in commenting it out is undefined
@@ -622,4 +634,11 @@ int Renderer::initDepthTestingResources(DeviceInfo device, uint32_t width, uint3
     vkCreateImageView(device.logical, &imageViewCreateInfo, nullptr, &this->depth.image.view);
 
     return 0;
+}
+
+void Renderer::updateInstances(DeviceInfo device, void *data, size_t size) {
+    void *ptrBuffer = instanceMemory.getMappedMemory();
+    memcpy(ptrBuffer, data, size);
+    VkMappedMemoryRange memoryRange = VKSTRUCT::mappedMemoryRange(instanceMemory.getHandle());
+    // vkFlushMappedMemoryRanges(device.logical, 1, &memoryRange);
 }

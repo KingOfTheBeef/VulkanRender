@@ -13,6 +13,8 @@ int main(int argc, char** argv) {
   std::cout << "Platform detected: " << PLATFORM << std::endl;
   #endif
 
+  GMATH::vec4 current = Data::Cube::quaternionRotations[0];
+  GMATH::vec4 target = Data::Cube::quaternionRotations[1];
   Core core;
   core.init();
   // WindowContext *context = new WindowContext();
@@ -24,7 +26,8 @@ int main(int argc, char** argv) {
     while (SDL_PollEvent(&event)) {
       switch(event.type) {
         case SDL_KEYDOWN:
-          core.update();
+            current = GMATH::normalise(GMATH::quatMult(target, current));
+            core.update(&current, sizeof(current));
           break;
         case SDL_QUIT:
           running = false;

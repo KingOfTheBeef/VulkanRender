@@ -57,7 +57,7 @@ namespace Data {
 
         static GMATH::vec4 quaternionRotations[] = {
                 GMATH::vec4(0.26f, 0.00f, 0.79f, 0.55f),
-                GMATH::vec4(0.92f, 0.00f, 0.40f, 0.00f),
+                GMATH::vec4(0.99f, 0.10f, 0.10f, 0.10f),
                 GMATH::vec4(0.21f, 0.57f, 0.65f, 0.45f)
         };
 

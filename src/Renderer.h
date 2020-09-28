@@ -30,6 +30,8 @@ public:
 
     int updateTexture(DeviceInfo device, ImageFile imageFile, VkImage image);
 
+    void updateInstances(DeviceInfo device, void *data, size_t size);
+
     int windowResize(DeviceInfo device, VkSurfaceKHR surface);
 
     int draw(DeviceInfo device);
@@ -46,7 +48,7 @@ private:
     } pipelines;
 
     struct {
-        Image           image;
+        Image           image{};
         DeviceMemory    memory;
     } depth;
 
@@ -60,11 +62,14 @@ private:
     Buffer                  indexBuffer;
     Buffer                  instanceBuffer;
 
-    Buffer                  stagingBuffer;
-    Buffer                  projectionBuffer;
+    struct {
+        Buffer buffer{};
+        HostVisibleDeviceMemory memory;
+    } staging;
 
-    HostVisibleDeviceMemory hostVisibleMemory;
+    Buffer                  projectionBuffer;
     DeviceMemory            deviceLocalMemory;
+    HostVisibleDeviceMemory instanceMemory;
 
     static const uint32_t   descriptorSetCount = 1;
     DescriptorSet           descriptorSets[descriptorSetCount];

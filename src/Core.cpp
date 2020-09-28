@@ -247,7 +247,7 @@ void Core::draw() {
   if (clock() - this->lastDrawCall < this->ticks_per_frame) {
       return;
   }
-
+  // std::cout << clock() - this->lastDrawCall << std::endl; should be 16 - 17 if not "lagging out"
   switch (renderer.draw(this->deviceInfo)) {
     case -1:
       windowResize();
@@ -295,12 +295,8 @@ void Core::windowResize() {
   renderer.windowResize(this->deviceInfo, this->surface);
 }
 
-void Core::update() {
-  for (int i = 0; i < 8; i++) {
-    Data::altVertexData[8 * i] += 0.1f;
-  }
-  // renderer.updateStagingBuffer(this->deviceInfo, Data::altVertexData, Data::vertexDataSize);
-  // renderer.submitStagingBuffer(this->deviceInfo);
+void Core::update(void *data, size_t size) {
+  renderer.updateInstances(this->deviceInfo, data, size);
 }
 
 #undef graphicIndex

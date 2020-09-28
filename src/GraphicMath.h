@@ -5,6 +5,7 @@
 #ifndef DYNAMICLINK_GRAPHICMATH_H
 #define DYNAMICLINK_GRAPHICMATH_H
 
+#define GLM_FORCE_SWIZZLE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -15,6 +16,22 @@ namespace GMATH {
     typedef glm::mat4 mat4;
     typedef glm::vec4 vec4;
     typedef glm::vec3 vec3;
+
+    static vec4 quatMult(vec4 q, vec4 p) {
+        return vec4(p.x * q.x - glm::dot(vec3(p.yzw), vec3(q.yzw)), p.x * q.yzw + q.x * p.yzw + glm::cross(vec3(p.yzw), vec3(q.yzw)));
+    }
+
+    static vec4 normalise(vec4 vector) {
+        return glm::normalize(vector);
+    }
+
+    static vec4 lerp(vec4 a, vec4 b, float t) {
+        return (1-t) * a + t * b;
+    }
+
+    static vec4 quatSlerp() {
+        return vec4(0);
+    }
 
     static mat4 identityMatrix() {
         return {

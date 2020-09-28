@@ -34,7 +34,7 @@ public:
     void      draw();
     void      clean();
     void      windowResize();
-    void      update();
+    void      update(void *data, size_t size);
 
 
 private:
