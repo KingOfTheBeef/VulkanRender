@@ -3,3 +3,7 @@ cmake-build-debug
 text
 CoolGuides.txt
 src/img
+.vscode
+CMakeCache.txt
+CMakeFiles/
+build/

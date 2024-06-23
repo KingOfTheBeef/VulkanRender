@@ -65,7 +65,7 @@ void Core::init() {
   VkInstanceCreateInfo info = {};
   info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   // TODO: Check here for if we want to enable layers, (debug purposes)...
-  populateLayerInfo(&info);
+  // populateLayerInfo(&info);
   populateExtensionInfo(&info);
   // Make instance
   if (vkCreateInstance(&info, nullptr, &this->instance) != VK_SUCCESS) {
